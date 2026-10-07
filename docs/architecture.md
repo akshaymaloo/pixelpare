@@ -1,8 +1,8 @@
-# PhotoSlim — Technical Investigation & Architecture (draft v0.2)
+# PixelPare — Technical Investigation & Architecture (draft v0.2)
 
 > v0.2 folds in `mock-review-sol.md` (Sol 6.1 review) and `research.md`. Corrections are marked **[v0.2]**.
 
-> Working name. Goal: free iCloud Photos space by (1) removing duplicate/similar photos and
+> Goal: free iCloud Photos space by (1) removing duplicate/similar photos and
 > (2) re-encoding videos at user-chosen quality levels — on-device, private, and safe.
 
 ## 1. Can we do Mac + iOS from one codebase? — Yes
@@ -13,22 +13,22 @@ APIs, so 85–90% of the code can be shared. Only the shell (window/navigation, 
 handling, a few gestures) differs.
 
 ```
-photoslim/
+pixelpare/
 ├── Package.swift                 # shared core, built & tested with SwiftPM
 ├── Sources/
-│   ├── SlimCore/                 # pure Swift: models, clustering, scoring, presets, savings math
-│   ├── SlimLibrary/              # PhotoKit adapter: scan, fetch, download-from-iCloud, delete, re-import
-│   ├── SlimVision/               # feature prints, hashes, sharpness / aesthetics / face-quality scoring
-│   ├── SlimTranscode/            # AVAssetReader/Writer + VideoToolbox HEVC pipeline, verification (SSIM)
-│   └── SlimUI/                   # shared SwiftUI views (cards, group grid, compare slider, savings ring)
+│   ├── PareCore/                 # pure Swift: models, clustering, scoring, presets, savings math
+│   ├── PareLibrary/              # PhotoKit adapter: scan, fetch, download-from-iCloud, delete, re-import
+│   ├── PareVision/               # feature prints, hashes, sharpness / aesthetics / face-quality scoring
+│   ├── PareTranscode/            # AVAssetReader/Writer + VideoToolbox HEVC pipeline, verification (SSIM)
+│   └── PareUI/                   # shared SwiftUI views (cards, group grid, compare slider, savings ring)
 ├── Apps/
 │   ├── macOS/                    # App entry, window/sidebar layout, menu commands
 │   └── iOS/                      # App entry, tab/stack layout, BGContinuedProcessingTask, swipe review
-├── Tools/slim-validate/          # executable validation suite (works under Command Line Tools)
+├── Tools/pare-validate/          # executable validation suite (works under Command Line Tools)
 └── project.yml                   # XcodeGen spec for the two app targets (as in ../filament)
 ```
 
-`SlimCore` has no Apple-framework dependency beyond Foundation (images cross the boundary as core-owned values; `CGImage` lives only in the adapter targets) **[v0.2]**, so the expensive logic (grouping,
+`PareCore` has no Apple-framework dependency beyond Foundation (images cross the boundary as core-owned values; `CGImage` lives only in the adapter targets) **[v0.2]**, so the expensive logic (grouping,
 best-shot ranking, savings estimation) is unit-testable on any machine and with fixtures.
 
 Protocol seams keep the core testable and platform-neutral:
@@ -129,7 +129,7 @@ Verification (gate before import): decodes fully, duration/timestamps, audio tra
 
 ## 6. Build & test notes (this Mac)
 - `swift test` fails under Command Line Tools (swift-testing macro plugin missing) → ship a
-  `slim-validate` executable target (`swift run slim-validate`), or build with
+  `pare-validate` executable target (`swift run pare-validate`), or build with
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` for XCTest/xcodebuild.
 - App targets via XcodeGen (`project.yml`), matching the `filament` project setup.
 - Test fixtures: a folder-backed `MediaLibrary` implementation so clustering/transcoding can be tested

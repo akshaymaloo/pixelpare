@@ -1,4 +1,4 @@
-# PhotoSlim mock review — round 2
+# PixelPare mock review — round 2
 
 Reviewed `mocks/index.html`, the supplied `mocks/preview.png`, and `docs/architecture.md`. This is a design/architecture review, not a functional accessibility audit. Neither source document was modified.
 

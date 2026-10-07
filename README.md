@@ -1,4 +1,4 @@
-# PhotoSlim (working name)
+# PixelPare
 
 Mac + iOS app to shrink a Photos / iCloud Photos library: review similar & duplicate photos, and re-encode
 large videos to HEVC with three user-chosen levels. On-device, review-first, never auto-deletes.

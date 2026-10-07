@@ -1,6 +1,6 @@
 > **Correction (verified 2026-10-06):** Apple's [iCloud storage doc](https://support.apple.com/en-us/108922) says items in Recently Deleted *don't count toward iCloud storage*, and that over-quota accounts delete immediately with no recovery. Where this report implies storage only drops after a purge, Apple's doc takes precedence.
 
-# PhotoSlim — Market & Technical Research
+# PixelPare — Market & Technical Research
 
 *Research date: 2026-10-06. Compiled for planning a macOS + iOS app that frees iCloud Photos space via duplicate/similar-photo cleanup and user-controlled video re-compression.*
 
@@ -94,7 +94,7 @@ Generic "Video Compress" apps offer slider/preset bitrate-resolution controls wi
 
 ### Background processing
 - **`BGProcessingTask`** (iOS 13+): deferred, system-scheduled, no execution guarantee — appropriate for automatic/background-triggered maintenance (e.g., scheduled scans).
-- **`BGContinuedProcessingTask`** (new in iOS/iPadOS 26, WWDC25 session 227): for continuing **user-initiated** long-running work (e.g., a tapped "Optimize Library Now" button) after backgrounding, with a system Live-Activity-style progress UI the user can cancel, and **can request background GPU access** for continued hardware-accelerated transcoding. **Apple explicitly says not to use it for automatic/background work like photo syncing** — only for explicit, user-initiated, progress-reportable actions. This maps directly onto PhotoSlim's architecture: automatic nightly dedupe scans → `BGProcessingTask`; user-tapped batch recompression → `BGContinuedProcessingTask`. ([developer.apple.com/videos/play/wwdc2025/227/](https://developer.apple.com/videos/play/wwdc2025/227/))
+- **`BGContinuedProcessingTask`** (new in iOS/iPadOS 26, WWDC25 session 227): for continuing **user-initiated** long-running work (e.g., a tapped "Optimize Library Now" button) after backgrounding, with a system Live-Activity-style progress UI the user can cancel, and **can request background GPU access** for continued hardware-accelerated transcoding. **Apple explicitly says not to use it for automatic/background work like photo syncing** — only for explicit, user-initiated, progress-reportable actions. This maps directly onto PixelPare's architecture: automatic nightly dedupe scans → `BGProcessingTask`; user-tapped batch recompression → `BGContinuedProcessingTask`. ([developer.apple.com/videos/play/wwdc2025/227/](https://developer.apple.com/videos/play/wwdc2025/227/))
 
 ### App architecture
 - Apple's SwiftUI multiplatform app template (one target, `#if os(macOS)` conditionals) is the recommended modern path for a fresh iOS+Mac app; Mac Catalyst remains best reserved for porting an existing heavy UIKit/iPad codebase rather than as a default for new projects. ([developer.apple.com/documentation/xcode/configuring-a-multiplatform-app-target](https://developer.apple.com/documentation/xcode/configuring-a-multiplatform-app-target))
@@ -124,7 +124,7 @@ Generic "Video Compress" apps offer slider/preset bitrate-resolution controls wi
 
 ---
 
-## 4. Recommendations for PhotoSlim's Feature Set
+## 4. Recommendations for PixelPare's Feature Set
 
 Based on the competitive gaps and technical constraints above:
 1. **Lead with "no subscription, or a fair one-time/lifetime option"** — this is the single clearest market differentiator (Clever Cleaner, Remo, PowerPhotos all prove this works).
@@ -150,4 +150,4 @@ Based on the competitive gaps and technical constraints above:
 - **Realistic H.264→HEVC savings are 15–40% at equal perceived quality** in production benchmarks (not the oft-quoted ~50% theoretical ceiling), with diminishing/compounding-loss returns when re-encoding video that's already HEVC.
 - **Easy, low-risk wins exist alongside the hard dedup/compression work**: Live Photo→still conversion saves ~2-3x per photo via a deterministic flag, screenshot/burst cleanup use native iOS metadata (no ML needed), and `BGContinuedProcessingTask` (iOS 26) is purpose-built for exactly this app's "user taps Optimize, sees live progress, can cancel" compression workflow.
 
-*Full file written to: `/Users/akshaymaloo/Documents/Projects/photoslim/docs/research.md`*
+*Full file written to: `/Users/akshaymaloo/Documents/Projects/pixelpare/docs/research.md`*

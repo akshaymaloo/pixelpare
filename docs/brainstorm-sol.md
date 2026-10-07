@@ -1,4 +1,4 @@
-# PhotoSlim: fewer files, same memories
+# PixelPare: fewer files, same memories
 
 **Product thesis:** help people reclaim meaningful photo-library space without making them become storage experts—or fear losing a memory. Start with a native Mac app that excels at reviewing near-duplicates and shrinking large, ordinary videos. Reuse its decision-making core on iPhone, not its desktop interface.
 
@@ -114,7 +114,7 @@ Trust means conservative defaults, honest estimates, preservation disclosures, a
 
 ## 5. Ten naming directions
 
-1. **PhotoSlim** — clear utility; “slim” may undersell safety.
+1. **PhotoSlim** (original working name) — clear utility; “slim” may undersell safety.
 2. **MemoryRoom** — strongest emotional promise: space without losing memories.
 3. **KeepBest** — excellent for review; less obviously about video.
 4. **PhotoLight** — approachable and category-relevant.
@@ -125,7 +125,7 @@ Trust means conservative defaults, honest estimates, preservation disclosures, a
 9. **Lighter Library** — plain-language benefit.
 10. **RoomForMore** — positive, memorable, but needs a descriptive subtitle.
 
-Keep **PhotoSlim** during validation; test **MemoryRoom: Photo & Video Cleanup** as the consumer-facing alternative. These are unvetted creative candidates: check trademarks, domains, and App Store conflicts before choosing.
+**Decision (2026-10-07): the app is named PixelPare.** It was clear on the App Store, pixelpare.app / pixelpare.com and a quick trademark web search; a formal USPTO/WIPO search is still to do. Keepsake, Sift, Featherweight and others were rejected over existing apps, trademarks or domains.
 
 ### Platform references
 
