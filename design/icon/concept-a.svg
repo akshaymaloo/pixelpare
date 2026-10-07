@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DA9FF"/><stop offset="1" stop-color="#5B3FE0"/></linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE6B8"/><stop offset="1" stop-color="#FFB38A"/></linearGradient>
+    <linearGradient id="curl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9D3F5"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#1B0F6B" flood-opacity=".35"/></filter>
+    <clipPath id="card"><path d="M262 250 H640 L774 384 V746 a28 28 0 0 1 -28 28 H262 a28 28 0 0 1 -28 -28 V278 a28 28 0 0 1 28 -28Z"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g filter="url(#sh)">
+    <path d="M262 250 H640 L774 384 V746 a28 28 0 0 1 -28 28 H262 a28 28 0 0 1 -28 -28 V278 a28 28 0 0 1 28 -28Z" fill="#fff"/>
+  </g>
+  <g clip-path="url(#card)">
+    <rect x="270" y="286" width="468" height="452" rx="14" fill="url(#sky)"/>
+    <circle cx="408" cy="410" r="52" fill="#FFF6E0"/>
+    <path d="M270 738 L430 540 L520 640 L600 560 L738 700 V738Z" fill="#4C6FE0"/>
+    <path d="M430 540 L470 590 L448 586 L430 610 L410 588 L392 592Z" fill="#fff" opacity=".85"/>
+  </g>
+  <path d="M640 250 L774 384 H668 a28 28 0 0 1 -28 -28Z" fill="url(#curl)"/>
+  <g fill="#fff">
+    <rect x="796" y="282" width="46" height="46" rx="8" opacity=".9"/>
+    <rect x="858" y="214" width="34" height="34" rx="6" opacity=".6"/>
+    <rect x="812" y="176" width="24" height="24" rx="5" opacity=".35"/>
+  </g>
+</svg>
