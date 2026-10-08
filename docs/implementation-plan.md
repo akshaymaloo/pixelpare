@@ -105,9 +105,11 @@ public enum SignalExtractor { static func signals(for image: CGImage, id: MediaI
 // PareTranscode
 public struct Transcoder { func transcode(input: URL, output: URL, settings: EncodeSettings, progress: @Sendable (Double)->Void) async throws }
                          // AVAssetReader/AVAssetWriter, HEVC, audio passthrough, copy metadata + orientation transform, cancellable
-public enum Verifier { static func verify(original: URL, encoded: URL, minSavings: Double = 0.15) async throws -> VerificationReport }
+public enum Verifier { static func verify(original: URL, encoded: URL, minSavings: Double = 0.15, expectedDisplaySize: CGSize? = nil) async throws -> VerificationReport }
                          // decodes fully, duration ±0.1 s, audio track count, dimensions/orientation, size saving; report.passed
-public enum PreviewEncoder { static func sampleEstimate(input: URL, settings:, seconds: Double = 5) async throws -> SizeEstimate } // .previewReady
+public enum PreviewEncoder { static func sampleEstimate(input: URL, settings:, seconds: Double = 5) async throws -> SizeEstimate  // .previewReady, ±10%
+                             static func extractFrame(from: URL, at: CMTime, maxPixel: Int) async throws -> CGImage }
+// EncodeSettings width/height = track natural (unrotated) size; swapped automatically if given in display orientation of a 90° track; never upscaled.
 ```
 
 ## UI (PareUI) — follow `mocks/index.html` v0.2
@@ -131,3 +133,10 @@ Info.plist: `NSPhotoLibraryUsageDescription`. Dev mode: `--folder <path>` launch
 - Original video deleted only when journal state is `importVerified` and user approved removal.
 - Savings count each original once across categories.
 - Transcoder output rejected if verification fails or saving < 15%.
+
+## Stage 2a notes (PareVision + PareLibrary, implemented)
+- `SignalExtractor.featurePrintRevision` = `VNGenerateImageFeaturePrintRequestRevision2` (pinned; legacy VN API). Also exposes `SignalExtractorError`.
+- `LibraryAccess` is `String`-backed; `LibraryError` (notFound, accessDenied, exportFailed, importFailed, thumbnailFailed). `PhotoLibrary` is `@unchecked Sendable` (lock-guarded PHAsset cache).
+- `PhotoLibrary.items()`: `videoCodec`/`frameRate` are nil and `isHDR` false (no cheap public source; no network); `isEdited` = adjustment/fullSize resources present; `byteSize`/`isLocal` via PHAssetResource KVC (`fileSize`, `locallyAvailable`), nil/true if absent. PresetPolicy must tolerate nil codec/frameRate.
+- `FolderLibrary`: PNG without EXIF DateTimeOriginal or filename containing "screenshot" → `.screenshot`; MediaID = relative path; import → `<name>-pare.<ext>` (`-pare-N` on collision) next to the original.
+- Orchestrator (library + vision) lives in PareUI, not PareLibrary.

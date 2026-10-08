@@ -18,6 +18,9 @@ let package = Package(
         .target(name: "PareTranscode", dependencies: ["PareCore"]),
         .target(name: "PareUI", dependencies: ["PareLibrary", "PareVision", "PareTranscode"]),
         .testTarget(name: "PareCoreTests", dependencies: ["PareCore"]),
+        .testTarget(name: "PareVisionTests", dependencies: ["PareVision", "PareCore"]),
+        .testTarget(name: "PareLibraryTests", dependencies: ["PareLibrary", "PareCore"]),
+        .testTarget(name: "PareTranscodeTests", dependencies: ["PareTranscode", "PareCore"]),
     ],
     swiftLanguageModes: [.v6]
 )
