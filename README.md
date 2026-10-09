@@ -16,6 +16,7 @@ large videos to HEVC with three user-chosen levels. On-device, review-first, nev
 | [mocks/playful.html](mocks/playful.html) | v0.3 playful direction "Pocket Workshop" (workbench, light table, video press, receipt, iPhone, Calm mode) + alternates Pip and The Memory Edit |
 | [mocks/playful-preview.png](mocks/playful-preview.png) | Full-page render of the playful mocks |
 | [docs/playful-ux-sol.md](docs/playful-ux-sol.md) | Six creative directions, rankings, delight moments, Calm mode (Sol 6.1) |
+| [docs/feature-ideas.md](docs/feature-ideas.md) | Ranked cleanup modules: blurry, screen recordings, Live → still, bursts, RAW, etc. (v1 / v1.1 / later) |
 | [design/icon/](design/icon/) | App icon: `pixelpare-icon.svg` (master, edit this), `./make-icons.sh` → `build/` iOS + macOS `AppIcon` sets and `PixelPare.icns`; `icon-preview.png` |
 
 Next step: **M0 spike** — CLI over a folder: feature-print grouping + HEVC transcode at 3 presets, measured on ~50 real videos.
