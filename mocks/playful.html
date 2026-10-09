@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PixelPare — v0.3 playful mocks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --sans:-apple-system,"SF Pro Text","SF Pro Display",BlinkMacSystemFont,"Helvetica Neue",system-ui,sans-serif;
+  --disp:-apple-system,"SF Pro Display",BlinkMacSystemFont,"Helvetica Neue",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Monaco,"Courier New",monospace;
+  --serif:"New York","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --bench:#E3D8C6; --bench-d:#D3C5AE; --ink:#2A251E; --ink2:#6E6355; --ink3:#9B8F7D;
+  --plastic:#F8F4EB; --plastic-d:#E9E1D2; --paper:#FFFEFA;
+  --teal:#14B8A6; --blue:#3B82F6; --teal-d:#0E8F82; --blue-d:#2563C9;
+  --grad:linear-gradient(145deg,#14B8A6 0%,#3B82F6 100%);
+  --amber:#F0A53A; --amber-d:#B9721A; --heart:#EC4468;
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .25  0 0 0 0 .1  0 0 0 .55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --sh-mod:0 1px 0 #fff inset,0 -2px 0 rgba(120,90,40,.12) inset,0 2px 0 #CDBFA5,0 12px 22px -6px rgba(90,60,20,.28),0 2px 4px rgba(90,60,20,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);color:var(--ink);background:#EFE8DA;-webkit-font-smoothing:antialiased;line-height:1.4}
+body::before{content:"";position:fixed;inset:0;background:var(--grain);opacity:.22;pointer-events:none;z-index:0}
+a{color:inherit}
+.page{position:relative;z-index:1;width:1440px;margin:0 auto;padding:56px 40px 80px}
+.mono{font-family:var(--mono)}
+.silk{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);font-weight:600}
+
+/* page header */
+.hero{display:grid;grid-template-columns:1.25fr 1fr;gap:56px;align-items:end;padding-bottom:36px;border-bottom:2px dashed #C6B89E}
+.hero .eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.hero .eyebrow img,.hero .eyebrow svg{width:44px;height:44px;border-radius:11px;box-shadow:0 6px 14px rgba(20,100,150,.35)}
+.hero h1{font-family:var(--disp);font-size:68px;line-height:.98;letter-spacing:-.035em;font-weight:800}
+.hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{font-size:16px;line-height:1.55;color:#4a4136;max-width:640px}
+.hero p+p{margin-top:10px}
+.principles{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-top:16px;font-size:13px;color:var(--ink2)}
+.principles li{list-style:none;padding-left:20px;position:relative}
+.principles li::before{content:"";position:absolute;left:0;top:5px;width:11px;height:11px;border-radius:50%;background:var(--grad);box-shadow:0 0 0 3px #fff8}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.toc a{font-family:var(--mono);font-size:11.5px;text-decoration:none;padding:8px 12px;border-radius:10px;background:var(--plastic);box-shadow:var(--sh-mod);letter-spacing:.04em;font-weight:600}
+.toc a:hover{background:#fff}
+.toc a b{color:var(--teal-d)}
+
+/* sections */
+.sec{padding-top:64px}
+.sec-head{display:grid;grid-template-columns:90px 1fr 520px;gap:24px;align-items:start;margin-bottom:26px}
+.sec-no{font-family:var(--mono);font-size:44px;font-weight:700;color:var(--teal);line-height:1;letter-spacing:-.04em}
+.sec-head h2{font-family:var(--disp);font-size:30px;letter-spacing:-.025em;line-height:1.1}
+.sec-head .tag{margin-top:6px;display:block}
+.sec-head .cap{font-size:13.5px;color:#51473a;line-height:1.55;border-left:3px solid var(--teal);padding-left:14px}
+.sec-head .cap b{color:var(--ink)}
+.band{margin-top:70px;padding:10px 18px;border-radius:12px;background:#2A251E;color:#F4EBDA;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between}
+.stage{display:flex;justify-content:center}
+
+/* generic hardware pieces */
+.bench{background-color:var(--bench);background-image:var(--grain),radial-gradient(120% 90% at 30% 0%,#EEE5D4 0%,transparent 60%);background-blend-mode:multiply,normal}
+.mod{position:relative;border-radius:24px;background:linear-gradient(180deg,#FBF8F1,var(--plastic-d));box-shadow:var(--sh-mod);padding:20px 22px}
+.mod::before,.mod::after{content:"";position:absolute;top:11px;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#c9bda8 70%);box-shadow:0 1px 1px rgba(80,50,10,.35),inset 0 -1px 1px rgba(80,50,10,.25)}
+.mod::before{left:12px}.mod::after{right:12px}
+.mod h3{font-family:var(--disp);font-size:25px;letter-spacing:-.02em;line-height:1.1}
+.mod .sub{font-size:13px;color:var(--ink2);margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:10px;justify-content:center;font-family:var(--disp);font-weight:700;font-size:15px;color:#fff;padding:12px 20px;border-radius:15px;background:var(--grad);box-shadow:0 5px 0 #1F5FB8,0 9px 14px -2px rgba(30,80,170,.4),inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(0,40,80,.3);border:0;cursor:pointer;white-space:nowrap;position:relative;top:0}
+.btn.alt{color:var(--ink);background:linear-gradient(#fff,#EFE8D9);box-shadow:0 5px 0 #CDBFA5,0 9px 14px -2px rgba(90,60,20,.25),inset 0 1px 0 #fff;text-shadow:none}
+.btn.xl{font-size:19px;padding:18px 26px;border-radius:20px;box-shadow:0 7px 0 #1F5FB8,0 14px 20px -3px rgba(30,80,170,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+.btn.sm{font-size:13px;padding:8px 13px;border-radius:12px;box-shadow:0 4px 0 #1F5FB8,0 7px 10px -2px rgba(30,80,170,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.btn.alt.sm{box-shadow:0 4px 0 #CDBFA5,0 7px 10px -2px rgba(90,60,20,.2),inset 0 1px 0 #fff}
+.key{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink);background:linear-gradient(#fff,#EDE5D5);box-shadow:0 2px 0 #BFB197,0 3px 3px rgba(60,40,10,.2),inset 0 1px 0 #fff;text-shadow:none}
+.btn .key{margin-left:2px}
+.glass{background:rgba(255,255,255,.52);-webkit-backdrop-filter:blur(22px) saturate(1.7);backdrop-filter:blur(22px) saturate(1.7);border:1px solid rgba(255,255,255,.75);box-shadow:0 10px 30px rgba(60,40,10,.16),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(255,255,255,.3)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.chip.est{border:1.5px dashed var(--amber-d);color:var(--amber-d);background:#FFF6E4}
+.chip.prev{border:1.5px solid var(--blue);color:var(--blue-d);background:#EAF2FF}
+.chip.fin{background:var(--teal);color:#fff;border:1.5px solid var(--teal-d)}
+.chip.unk{border:1.5px dotted var(--ink3);color:var(--ink2);background:#F3EEE3}
+.chip.prot{background:#FFE9EE;border:1.5px solid var(--heart);color:#B3213F}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em}
+.toggle i{width:38px;height:22px;border-radius:99px;background:#CFC4B0;box-shadow:inset 0 2px 3px rgba(60,40,10,.3);position:relative;display:block}
+.toggle i::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:linear-gradient(#fff,#E8E0D0);box-shadow:0 2px 3px rgba(60,40,10,.35)}
+.toggle.on i{background:var(--teal)}.toggle.on i::after{left:18px}
+
+/* photos */
+.ph{display:block;width:100%;height:100%}
+.ph-box{position:relative;overflow:hidden;background:#ddd}
+.pcard{background:var(--paper);border-radius:6px;padding:7px 7px 0;box-shadow:0 1px 0 #fff inset,0 8px 16px -4px rgba(60,40,10,.35),0 1px 3px rgba(60,40,10,.25)}
+.pcard .ph-box{border-radius:2px}
+
+/* mac window */
+.mac{position:relative;width:1280px;height:820px;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px rgba(60,40,10,.25),0 40px 70px -20px rgba(70,45,10,.5),0 12px 20px rgba(70,45,10,.2)}
+.mac.tall{height:860px}
+.mac .tb{position:absolute;left:14px;right:14px;top:12px;height:50px;border-radius:16px;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:20}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25)}
+.lights i:nth-child(1){background:#FF5F57}.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+.tb .ttl{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-.01em}
+.tb .sp{flex:1}
+.mac .body{position:absolute;inset:0;padding:84px 26px 26px}
+
+/* home */
+.home-grid{display:grid;grid-template-columns:1.18fr 1fr;grid-template-rows:auto 1fr;gap:20px;height:100%}
+.silk-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tray{height:340px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tray .l{display:flex;flex-direction:column;justify-content:center;padding-left:6px}
+.big-n{font-family:var(--disp);font-size:66px;font-weight:800;letter-spacing:-.05em;line-height:.9;color:var(--ink)}
+.big-n small{font-size:20px;letter-spacing:-.01em;font-weight:700;display:block;margin-top:6px;color:var(--ink2)}
+.fan{position:relative}
+.fan .pcard{position:absolute;width:190px;transform-origin:50% 100%}
+.slot{position:absolute;left:-6px;right:-6px;bottom:6px;height:86px;border-radius:14px;background:linear-gradient(#D8CCB7,#E8DFCC);box-shadow:inset 0 5px 9px rgba(70,45,10,.3),0 1px 0 #fff;z-index:5;overflow:hidden}
+.slot::after{content:"";position:absolute;left:0;right:0;bottom:0;height:8px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.1) 0 1px,transparent 1px 10px)}
+.press{display:flex;flex-direction:column}
+.press .reel-wrap{margin-top:34px}
+.reel-wrap{display:flex;gap:16px;align-items:center;margin:14px 0 6px}
+.bundle{position:relative}
+.paper{position:absolute;background:var(--paper);border-radius:3px;box-shadow:0 6px 12px -3px rgba(60,40,10,.35),0 1px 2px rgba(60,40,10,.2);overflow:hidden}
+.gauge .lab{font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.02em}
+.safety{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--ink2);padding:11px 14px;border-radius:14px;background:rgba(255,255,255,.55);box-shadow:inset 0 1px 3px rgba(60,40,10,.18),0 1px 0 #fff}
+.safety b{color:var(--ink)}
+
+/* light table */
+.lt-wrap{display:grid;grid-template-columns:126px 1fr;gap:18px;height:100%}
+.rail{border-radius:16px;background:linear-gradient(180deg,#EFE7D8,#E4DAC7);box-shadow:inset 0 3px 8px rgba(70,45,10,.2),0 1px 0 #fff;padding:12px 10px;display:flex;flex-direction:column;gap:9px;overflow:hidden}
+.rail .g{position:relative;border-radius:5px;background:#fff;padding:4px;box-shadow:0 3px 6px -2px rgba(60,40,10,.3)}
+.rail .g .ph-box{height:48px}
+.rail .g.cur{box-shadow:0 0 0 2.5px var(--teal),0 5px 10px -2px rgba(20,120,120,.4)}
+.rail .g .st{position:absolute;right:-5px;top:-5px;width:17px;height:17px;border-radius:50%;background:var(--teal);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 2px #EFE7D8}
+.rail .g .st.m{background:var(--amber)}
+.table{position:relative;border-radius:20px;background:radial-gradient(90% 80% at 50% 45%,#FFFFFF 0%,#F8FBFB 45%,#E9F1F1 100%);box-shadow:0 0 0 9px #3B352E,0 0 0 10px #5b534a,0 0 0 12px #25211c,inset 0 0 70px rgba(20,184,166,.18),inset 0 0 0 1px #fff,0 18px 30px -8px rgba(40,25,5,.45);padding:28px 30px 24px;overflow:hidden}
+.table::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(20,150,160,.07) 0 1px,transparent 1px 28px),repeating-linear-gradient(90deg,rgba(20,150,160,.07) 0 1px,transparent 1px 28px);pointer-events:none}
+.table .hdr{position:relative;display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.table .hdr h3{font-family:var(--disp);font-size:20px;letter-spacing:-.02em}
+.lt-grid{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:34px 38px;padding:0 12px}
+.lc{position:relative;background:#fff;border-radius:8px;padding:9px 9px 0;box-shadow:0 1px 0 #fff inset,0 14px 24px -8px rgba(30,60,70,.45),0 2px 5px rgba(30,60,70,.22)}
+.lc .ph-box{height:205px;border-radius:3px}
+.lc .cp{display:flex;justify-content:space-between;align-items:center;height:36px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.lc .cp b{color:var(--ink)}
+.lc.keeper{box-shadow:0 0 0 3px var(--teal),0 14px 24px -8px rgba(10,100,100,.5)}
+.ctab{position:absolute;left:-10px;top:-10px;z-index:6;font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:.06em;color:#fff;background:var(--grad);padding:7px 14px 7px 12px;border-radius:5px 12px 12px 0;box-shadow:0 5px 8px -2px rgba(10,80,120,.5),inset 0 1px 0 rgba(255,255,255,.5);text-transform:uppercase}
+.ctab::after{content:"";position:absolute;left:0;bottom:-9px;border:5px solid transparent;border-top-color:#0b5aa8;border-right-color:#0b5aa8;border-left-width:0}
+.mtab{position:absolute;right:20px;top:-22px;z-index:6;width:122px;height:30px;font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#6a3d04;background:linear-gradient(#FFD58C,#F2AE48);border-radius:9px 9px 0 0;display:grid;place-items:center;box-shadow:0 -3px 6px -2px rgba(150,90,10,.35),inset 0 1px 0 rgba(255,255,255,.65);transform:rotate(-1.5deg)}
+.mtab::before{content:"";position:absolute;left:10px;top:12px;width:6px;height:6px;border-radius:50%;background:#7a4a0a;opacity:.55}
+.mtab span{margin-left:12px}
+.mtab.empty{background:transparent;border:2px dashed #BDB3A0;border-bottom:0;color:#9b9078;box-shadow:none;transform:none}
+.mtab.empty::before{display:none}.mtab.empty span{margin-left:0}
+.shield{position:absolute;left:14px;top:14px;z-index:6;display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8f1733;background:rgba(255,255,255,.96);padding:5px 11px 5px 6px;border-radius:99px;box-shadow:0 4px 8px rgba(80,0,20,.3)}
+.shield svg{width:22px;height:24px}
+.badge-note{position:absolute;left:14px;bottom:50px;z-index:6;font-size:11.5px;font-weight:600;background:rgba(255,255,255,.96);padding:4px 10px;border-radius:7px;box-shadow:0 3px 8px rgba(0,0,0,.2)}
+.loupe{position:absolute;right:12px;bottom:12px;width:96px;height:96px;border-radius:50%;border:4px solid #fff;box-shadow:0 0 0 2px #C9A45B,0 0 0 4px #7a5a22,0 8px 14px rgba(0,0,0,.4);overflow:hidden;z-index:5;background:#fff}
+.loupe em{position:absolute;left:0;right:0;bottom:0;font-style:normal;text-align:center;font-family:var(--mono);font-size:9px;font-weight:700;background:rgba(30,25,20,.7);color:#fff;padding:2px 0 3px;letter-spacing:.05em}
+.tray-bar{position:absolute;left:156px;right:26px;bottom:20px;height:74px;border-radius:22px;display:flex;align-items:center;gap:16px;padding:0 16px 0 18px;z-index:20}
+.slots{display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(190,175,150,.5);box-shadow:inset 0 2px 5px rgba(60,40,10,.3)}
+.slots i{width:38px;height:38px;border-radius:5px;display:block;overflow:hidden;background:rgba(255,255,255,.35);border:1.5px dashed rgba(100,80,40,.4)}
+.slots i.f{border:0;box-shadow:0 0 0 2px var(--amber);background:#fff}
+.hint{display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:10.5px;color:var(--ink2);font-weight:600}
+
+/* video press */
+.vp{display:grid;grid-template-columns:350px 1fr 400px;gap:20px;height:100%}
+.knob-mod{padding-bottom:16px}
+.opt{display:flex;gap:10px;padding:9px 10px;border-radius:12px;margin-top:6px;align-items:flex-start}
+.opt .led{flex:none;width:10px;height:10px;border-radius:50%;margin-top:4px;background:#C9BFA9;box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.opt.on{background:#fff;box-shadow:0 4px 10px -3px rgba(60,40,10,.3),0 0 0 1.5px var(--teal)}
+.opt.on .led{background:var(--teal);box-shadow:0 0 8px var(--teal)}
+.opt b{font-size:13.5px;display:block}
+.opt span{font-size:11.5px;color:var(--ink2);line-height:1.35;display:block}
+.vrow{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;padding:9px;border-radius:14px;background:#fff;margin-bottom:9px;box-shadow:0 1px 0 #fff inset,0 5px 10px -4px rgba(60,40,10,.3)}
+.vrow .th{height:52px;border-radius:6px}
+.vrow .th .play{position:absolute;left:5px;bottom:5px;width:15px;height:15px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center}
+.vrow .th .play::after{content:"";border-left:6px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent;margin-left:2px}
+.vrow b{font-size:13.5px}
+.vrow .m{font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:2px}
+.vrow .sz{text-align:right;display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.vrow .sz .n{font-family:var(--mono);font-size:12px;font-weight:700}
+.vrow.sel{box-shadow:0 0 0 2px var(--blue),0 8px 14px -5px rgba(30,80,170,.4)}
+.finder{border-radius:20px;background:#26221D;padding:14px;box-shadow:0 1px 0 rgba(255,255,255,.2) inset,0 14px 22px -8px rgba(40,25,5,.55)}
+.finder .screen{position:relative;height:218px;border-radius:10px;overflow:hidden;background:#000}
+.finder .half{position:absolute;top:0;bottom:0}
+.finder .lbl{position:absolute;top:8px;font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.06em;background:rgba(0,0,0,.6);color:#fff;padding:3px 7px;border-radius:5px;z-index:3}
+.split{position:absolute;left:50%;top:0;bottom:0;width:3px;background:#fff;z-index:4;box-shadow:0 0 8px rgba(0,0,0,.6)}
+.split::after{content:"◂ ▸";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:var(--grad);border:3px solid #fff;display:grid;place-items:center;color:#fff;font-size:9px;letter-spacing:-1px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.5)}
+.finder .ctl{display:flex;gap:10px;align-items:center;margin-top:11px;font-family:var(--mono);font-size:10.5px;color:#cfc6b6}
+.scrub{flex:1;height:6px;border-radius:3px;background:#4b443a;position:relative}
+.scrub::before{content:"";position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--teal);border-radius:3px}
+.scrub::after{content:"";position:absolute;left:38%;top:-4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#fff}
+
+/* receipt */
+.rc-stage{display:grid;grid-template-columns:1fr 440px 1fr;gap:30px;height:100%;align-items:start}
+.printer{position:absolute;left:50%;top:76px;transform:translateX(-50%);width:540px;height:74px;border-radius:22px;background:linear-gradient(#FBF8F1,#E2D8C5);box-shadow:var(--sh-mod);z-index:4;padding:12px 24px}
+.printer .slit{position:absolute;left:46px;right:46px;bottom:14px;height:12px;border-radius:6px;background:#2a241d;box-shadow:inset 0 3px 5px #000,0 1px 0 #fff}
+.printer .leds{display:flex;gap:7px;align-items:center}
+.printer .leds i{width:9px;height:9px;border-radius:50%;background:var(--teal);box-shadow:0 0 7px var(--teal);display:block}
+.receipt{position:absolute;left:50%;top:136px;transform:translateX(-50%);width:400px;background:#FFFFFB;color:#26231d;font-family:var(--mono);font-size:12.5px;line-height:1.5;padding:26px 28px 44px;filter:drop-shadow(0 22px 22px rgba(60,40,10,.32)) drop-shadow(0 3px 3px rgba(60,40,10,.25));z-index:3;
+  -webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/16px 100% repeat-x,linear-gradient(#000,#000) top/100% calc(100% - 8px) no-repeat;
+  mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/16px 100% repeat-x,linear-gradient(#000,#000) top/100% calc(100% - 8px) no-repeat;
+  background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.018) 0 1px,transparent 1px 3px)}
+.receipt .ctr{text-align:center}
+.receipt h4{font-size:19px;letter-spacing:.2em;font-weight:800}
+.receipt hr{border:0;border-top:1.5px dashed #9c9684;margin:11px 0}
+.receipt .ln{display:flex;gap:6px;align-items:baseline}
+.receipt .ln i{flex:1;border-bottom:1.5px dotted #a8a28f;transform:translateY(-3px);min-width:14px}
+.receipt .ln b{font-weight:800}
+.receipt .sm{font-size:10.5px;color:#6a6556;line-height:1.45}
+.receipt .tot{font-size:15px;font-weight:800}
+.receipt .nb{display:flex;justify-content:space-between;font-size:11px;margin-top:2px;color:#6a6556;padding-left:2px}
+.barcode{height:34px;margin:10px auto 0;width:260px;background:repeating-linear-gradient(90deg,#26231d 0 2px,transparent 2px 4px,#26231d 4px 5px,transparent 5px 8px,#26231d 8px 11px,transparent 11px 13px)}
+.note-l,.note-r{font-size:12.5px;color:#4a4136;line-height:1.5;position:absolute;top:210px;width:260px}
+.note-l{left:34px}.note-r{right:34px}
+.note-l b,.note-r b{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--teal-d);text-transform:uppercase;margin-bottom:4px}
+.note-l div+div,.note-r div+div{margin-top:30px}
+.note-l::after,.note-r::after{display:none}
+
+/* iphone */
+.phones{display:flex;gap:44px;justify-content:center}
+.phone{position:relative;flex:none;width:414px;height:850px;border-radius:64px;background:#1c1a17;padding:12px;box-shadow:0 0 0 2px #4a463f,0 0 0 3px #1c1a17,0 40px 60px -20px rgba(50,30,5,.55),inset 0 0 0 2px #3b3731}
+.screen-ph{position:relative;width:100%;height:100%;border-radius:52px;overflow:hidden}
+.island{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:118px;height:34px;border-radius:20px;background:#000;z-index:30}
+.sbar{position:absolute;left:34px;right:34px;top:15px;display:flex;justify-content:space-between;font-weight:700;font-size:15px;z-index:29}
+.hbar{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:138px;height:5px;border-radius:3px;background:rgba(0,0,0,.85);z-index:30}
+.ph-nav{position:absolute;left:12px;right:12px;top:54px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:20}
+.ph-nav b{font-family:var(--disp);font-size:16px}
+.ph-body{position:absolute;inset:0;padding:112px 16px 0}
+.tabbar{position:absolute;left:18px;right:18px;bottom:24px;height:62px;border-radius:31px;display:flex;justify-content:space-around;align-items:center;z-index:20;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--ink2)}
+.tabbar span{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 14px;border-radius:20px}
+.tabbar span.on{background:rgba(255,255,255,.85);color:var(--teal-d);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.tabbar svg{width:22px;height:22px}
+.pm{padding:14px 16px;border-radius:20px}
+.pm h3{font-size:21px}
+.pm::before,.pm::after{display:none}
+.bigbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.thumb-btn{height:74px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:var(--disp);font-weight:800;font-size:19px}
+.thumb-btn small{font-family:var(--mono);font-size:10px;letter-spacing:.06em;font-weight:600;opacity:.8}
+.thumb-btn.mark{background:linear-gradient(#FFD58C,#F2AE48);color:#5a3203;box-shadow:0 6px 0 #B9721A,0 10px 14px -3px rgba(150,90,10,.4),inset 0 1px 0 rgba(255,255,255,.7)}
+.thumb-btn.keep{background:linear-gradient(#fff,#EFE8D9);box-shadow:0 6px 0 #CDBFA5,0 10px 14px -3px rgba(90,60,20,.25),inset 0 1px 0 #fff}
+.thumb-btn.kg{grid-column:1/3;height:66px;background:var(--grad);color:#fff;flex-direction:row;gap:10px;box-shadow:0 6px 0 #1F5FB8,0 10px 14px -3px rgba(30,80,170,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+.hslider{position:relative;height:86px;margin:6px 8px 0}
+.hslider .track{position:absolute;left:6px;right:6px;top:30px;height:14px;border-radius:7px;background:#D6CAB5;box-shadow:inset 0 3px 5px rgba(60,40,10,.35),0 1px 0 #fff}
+.hslider .nt{position:absolute;top:18px;width:3px;height:38px;border-radius:2px;background:#9d9179;transform:translateX(-50%)}
+.hslider .th{position:absolute;top:12px;width:54px;height:50px;border-radius:16px;margin-left:-27px;background:var(--grad);box-shadow:0 5px 0 #1F5FB8,0 9px 14px rgba(30,80,170,.4),inset 0 1px 0 rgba(255,255,255,.55)}
+.hslider .th::after{content:"";position:absolute;left:50%;top:10px;bottom:10px;width:3px;margin-left:-1.5px;border-radius:2px;background:rgba(255,255,255,.85)}
+.hslider .lb{position:absolute;top:70px;transform:translateX(-50%);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;text-align:center;white-space:nowrap}
+.peek{position:absolute;left:46px;right:46px;bottom:-4px;height:150px;background:#FFFFFB;font-family:var(--mono);font-size:11px;padding:14px 18px;filter:drop-shadow(0 -8px 12px rgba(60,40,10,.25));border-radius:6px 6px 0 0;z-index:15}
+.peek .ln{display:flex;gap:5px}.peek .ln i{flex:1;border-bottom:1.5px dotted #a8a28f;transform:translateY(-3px)}
+
+/* taste strip */
+.taste{display:grid;grid-template-columns:1fr 1fr;gap:60px}
+.taste figure{display:flex;flex-direction:column;align-items:center;gap:22px}
+.taste figcaption{max-width:470px;font-size:13.5px;color:#4a4136;line-height:1.55;text-align:center}
+.taste figcaption b{display:block;font-family:var(--disp);font-size:20px;color:var(--ink);margin-bottom:4px}
+
+/* delight */
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.dv{border-radius:22px;background:linear-gradient(180deg,#FBF8F1,var(--plastic-d));box-shadow:var(--sh-mod);overflow:hidden;display:flex;flex-direction:column}
+.dv .art{height:210px;position:relative;display:grid;place-items:center;background-color:#EDE5D4;background-image:var(--grain);background-blend-mode:multiply;box-shadow:inset 0 3px 8px rgba(70,45,10,.2);overflow:hidden}
+.dv .tx{padding:14px 18px 18px}
+.dv .tx .silk{color:var(--teal-d)}
+.dv h4{font-family:var(--disp);font-size:16.5px;margin:3px 0 4px;letter-spacing:-.01em}
+.dv p{font-size:12.5px;color:var(--ink2);line-height:1.45}
+.mini{position:relative;width:150px;background:#fff;border-radius:6px;padding:6px 6px 0;box-shadow:0 10px 18px -5px rgba(60,40,10,.4)}
+.mini .ph-box{height:92px}.mini .cp{height:24px;font-family:var(--mono);font-size:9.5px;display:flex;align-items:center;color:var(--ink2)}
+
+@keyframes snap{0%,12%{transform:translateY(26px) rotate(-1.5deg);opacity:0}28%{transform:translateY(-5px) rotate(-1.5deg);opacity:1}38%,88%{transform:translateY(0) rotate(-1.5deg);opacity:1}100%{transform:translateY(26px) rotate(-1.5deg);opacity:0}}
+@keyframes unfold{0%,10%{transform:scale(.2) rotate(-20deg);opacity:0}30%{transform:scale(1.12);opacity:1}40%,88%{transform:scale(1);opacity:1}100%{opacity:0}}
+@keyframes pulse{0%,100%{transform:scale(1)}18%{transform:scale(1.18)}30%{transform:scale(.96)}42%{transform:scale(1)}}
+@keyframes detent{0%,18%{transform:rotate(-55deg)}28%,48%{transform:rotate(0deg)}58%,78%{transform:rotate(55deg)}92%,100%{transform:rotate(-55deg)}}
+@keyframes tick{0%,26%,50%,56%,80%,100%{opacity:.25}28%,34%,58%,64%{opacity:1}}
+@keyframes slidein{0%,15%{transform:translateX(-70px);opacity:0}40%,90%{transform:translateX(0);opacity:1}100%{opacity:0}}
+@keyframes draw{0%,15%{stroke-dashoffset:70}45%,90%{stroke-dashoffset:0}100%{stroke-dashoffset:70}}
+@keyframes ring{0%,10%{stroke-dashoffset:300}40%,90%{stroke-dashoffset:0}100%{stroke-dashoffset:300}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes wob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes arrowin{0%,100%{transform:translate(0,0)}50%{transform:translate(5px,5px)}}
+.a-snap{animation:snap 3.6s ease-in-out -1.6s infinite}
+.a-unfold{animation:unfold 3.6s ease-in-out -1.6s infinite;transform-origin:0 0}
+.a-pulse{animation:pulse 2.8s ease-in-out infinite}
+.a-det{animation:detent 6s cubic-bezier(.5,0,.2,1) -2.4s infinite;transform-origin:70px 70px}
+.a-tick{animation:tick 6s linear infinite}.a-tick.t2{animation-delay:0s}
+.a-slide{animation:slidein 3.8s ease-out -1.8s infinite}
+.a-draw{stroke-dasharray:70;animation:draw 3.6s ease-in-out -1.8s infinite}
+.a-ring{stroke-dasharray:300;animation:ring 3.6s ease-in-out -1.8s infinite}
+.a-bob{animation:bob 3s ease-in-out infinite}
+.a-wob{animation:wob 3.2s ease-in-out infinite;transform-origin:130px 120px}
+.a-arr{animation:arrowin 2.2s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+
+/* calm variant */
+.calm-note{display:flex;gap:30px;align-items:center;justify-content:center}
+.calm-frame{width:calc(1280px*.62);height:calc(820px*.62);position:relative;flex:none}
+.calm-frame>.mac{transform:scale(.62);transform-origin:0 0;position:absolute;left:0;top:0}
+.calm *{animation:none!important}
+.still *{animation-play-state:paused!important}
+.calm.mac{box-shadow:0 0 0 1px #c9c9cc,0 14px 30px -10px rgba(0,0,0,.25)}
+.calm .bench,.calm.bench{background:#EDEDEF;background-image:none}
+.calm .rail{background:#E4E4E7;box-shadow:none}
+.calm .rail .g,.calm .lc{box-shadow:0 0 0 1px #d3d3d8}
+.calm .lc.keeper{box-shadow:0 0 0 2px #0E8F82}
+.calm .table{background:#fff;box-shadow:0 0 0 1px #cfcfd4;}
+.calm .table::before{display:none}
+.calm .glass{box-shadow:0 0 0 1px #d6d6db;background:rgba(255,255,255,.85)}
+.calm .btn{background:#0E8F82;box-shadow:none;text-shadow:none}
+.calm .btn.alt{background:#fff;color:var(--ink);box-shadow:0 0 0 1px #c9c9cc}
+.calm .key{box-shadow:0 0 0 1px #c9c9cc;background:#fff}
+.calm .mtab{background:#F6D9A8;transform:none;box-shadow:none}
+.calm .mtab.empty{background:transparent}
+.calm .ctab{background:#0E8F82;box-shadow:none}
+.calm .loupe{box-shadow:0 0 0 1px #999}
+.calm .slots{box-shadow:none;background:#E4E4E7}
+.calm .toggle.on i{background:#0E8F82}
+.calm .shield{box-shadow:0 0 0 1px #e3b3be}
+footer{margin-top:80px;padding-top:20px;border-top:2px dashed #C6B89E;font-size:12px;color:var(--ink2);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<!-- shared scenes + gradients -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fb8f0"/><stop offset="1" stop-color="#d6f1fd"/></linearGradient>
+  <linearGradient id="gSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1ea7c9"/><stop offset="1" stop-color="#2fd0c0"/></linearGradient>
+  <linearGradient id="gSand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e2b8"/><stop offset="1" stop-color="#e5c48b"/></linearGradient>
+  <linearGradient id="gGrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9cc86a"/><stop offset="1" stop-color="#4c8a3c"/></linearGradient>
+  <linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd6c2"/><stop offset="1" stop-color="#ffc0d2"/></linearGradient>
+  <linearGradient id="gMtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b6fc4"/><stop offset=".7" stop-color="#e3a7c4"/><stop offset="1" stop-color="#ffd9a6"/></linearGradient>
+  <linearGradient id="gLake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6d87bd"/><stop offset="1" stop-color="#2b4777"/></linearGradient>
+  <linearGradient id="gSun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d1b5e"/><stop offset=".45" stop-color="#e2506f"/><stop offset=".85" stop-color="#ffb04a"/><stop offset="1" stop-color="#ffe08a"/></linearGradient>
+  <linearGradient id="gRoadSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc3ee"/><stop offset="1" stop-color="#fbe7c4"/></linearGradient>
+  <linearGradient id="gNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f1b3d"/><stop offset="1" stop-color="#3b3f85"/></linearGradient>
+  <radialGradient id="gFlame"><stop offset="0" stop-color="#fff6c0"/><stop offset="1" stop-color="#ff9a1f" stop-opacity="0"/></radialGradient>
+
+  <g id="s-beach">
+    <rect width="160" height="120" fill="url(#gSky)"/>
+    <circle cx="126" cy="28" r="17" fill="#fff6c8" opacity=".45"/><circle cx="126" cy="28" r="9" fill="#fff3a0"/>
+    <path d="M10 22q8-7 17 0q8-6 16 0q-8 3-16 2q-9 3-17-2z" fill="#fff" opacity=".85"/>
+    <path d="M0 55Q20 51 40 55T80 55T120 55T160 55V82H0Z" fill="url(#gSea)"/>
+    <path d="M0 66q10-3 20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0" stroke="#fff" stroke-opacity=".75" fill="none" stroke-width="1.6"/>
+    <path d="M0 76q10-3 20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0" stroke="#fff" stroke-opacity=".45" fill="none" stroke-width="1.2"/>
+    <path d="M0 82Q40 75 80 79T160 77V120H0Z" fill="url(#gSand)"/>
+    <line x1="46" y1="72" x2="42" y2="108" stroke="#7a5a3a" stroke-width="2.2"/>
+    <path d="M22 76Q44 44 68 76Z" fill="#ef4444"/><path d="M33 68Q44 49 55 68L50 76L38 76Z" fill="#fff"/>
+    <g transform="rotate(-7 82 102)"><rect x="62" y="94" width="40" height="16" rx="2" fill="#3b82f6"/><rect x="62" y="98" width="40" height="3" fill="#fff"/><rect x="62" y="104" width="40" height="3" fill="#fff"/></g>
+    <circle cx="116" cy="92" r="6" fill="#f0b48c"/><path d="M108 100q8-6 16 0v14h-16z" fill="#fbbf24"/><rect x="124" y="104" width="10" height="9" rx="1" fill="#ef4444"/>
+  </g>
+  <g id="s-dog">
+    <rect width="160" height="120" fill="url(#gGrass)"/>
+    <g fill="#e8f5a8" opacity=".5"><circle cx="18" cy="22" r="9"/><circle cx="40" cy="12" r="6"/><circle cx="140" cy="20" r="10"/><circle cx="122" cy="8" r="6"/><circle cx="150" cy="52" r="7"/><circle cx="10" cy="58" r="6"/></g>
+    <ellipse cx="46" cy="60" rx="14" ry="28" fill="#9b5d28" transform="rotate(16 46 60)"/>
+    <ellipse cx="114" cy="60" rx="14" ry="28" fill="#9b5d28" transform="rotate(-16 114 60)"/>
+    <ellipse cx="80" cy="118" rx="46" ry="24" fill="#c98842"/>
+    <ellipse cx="80" cy="64" rx="38" ry="40" fill="#dc9d50"/>
+    <path d="M80 26q-9 14-6 32h12q3-18-6-32z" fill="#f1c88f"/>
+    <ellipse cx="80" cy="83" rx="21" ry="16" fill="#f5d9ae"/>
+    <circle cx="66" cy="54" r="5.2" fill="#2a1a10"/><circle cx="67.7" cy="52.4" r="1.7" fill="#fff"/><circle cx="64.6" cy="56" r=".8" fill="#fff" opacity=".7"/>
+    <circle cx="94" cy="54" r="5.2" fill="#2a1a10"/><circle cx="95.7" cy="52.4" r="1.7" fill="#fff"/><circle cx="92.6" cy="56" r=".8" fill="#fff" opacity=".7"/>
+    <path d="M60 46q6-4 12 0M88 46q6-4 12 0" stroke="#8a5222" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <ellipse cx="80" cy="74" rx="7.5" ry="5" fill="#241a17"/><ellipse cx="78" cy="72.5" rx="2" ry="1" fill="#fff" opacity=".5"/>
+    <path d="M80 79v5M72 85q8 6 8-1q0 7 8 1" stroke="#5b3a22" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M76 88q4 12 8 0z" fill="#f2788f"/>
+    <path d="M52 106q28 12 56 0v7q-28 12-56 0z" fill="#ef4444"/><circle cx="80" cy="117" r="4.5" fill="#fbbf24"/>
+  </g>
+  <g id="s-cake">
+    <rect width="160" height="120" fill="url(#gWall)"/>
+    <path d="M0 8Q40 28 80 14T160 10" stroke="#fff" stroke-width="1.2" fill="none"/>
+    <g><path d="M8 11l8 3-5 10z" fill="#3b82f6"/><path d="M26 17l8 1-6 10z" fill="#fbbf24"/><path d="M46 20l8-2-3 11z" fill="#14b8a6"/><path d="M68 18l8 2-8 9z" fill="#ef4444"/><path d="M90 16l8-2 0 11z" fill="#3b82f6"/><path d="M112 12l8-3 -2 11z" fill="#fbbf24"/><path d="M134 10l8-2-2 11z" fill="#14b8a6"/></g>
+    <circle cx="26" cy="52" r="13" fill="#3b82f6"/><circle cx="21" cy="47" r="3.5" fill="#fff" opacity=".5"/><path d="M26 65q-3 22 4 34" stroke="#fff" fill="none"/>
+    <circle cx="14" cy="62" r="10" fill="#14b8a6"/><path d="M14 72q-2 14 6 26" stroke="#fff" fill="none"/>
+    <circle cx="136" cy="46" r="14" fill="#fbbf24"/><circle cx="131" cy="41" r="3.5" fill="#fff" opacity=".6"/><path d="M136 60q4 20-4 40" stroke="#fff" fill="none"/>
+    <rect y="92" width="160" height="28" fill="#b7835a"/><rect y="92" width="160" height="3" fill="#d9a77a"/>
+    <ellipse cx="80" cy="97" rx="48" ry="7" fill="#fff"/>
+    <rect x="48" y="66" width="64" height="30" rx="5" fill="#f8a5c2"/>
+    <rect x="58" y="48" width="44" height="20" rx="4" fill="#fff1f5"/>
+    <path d="M48 70q6 9 12 0q6 9 12 0q6 9 12 0q6 9 12 0q6 9 12 0q3 5 4 0v-6H48z" fill="#fff"/>
+    <path d="M58 52q5 8 10 0q5 8 10 0q5 8 10 0q5 8 10 0v-4H58z" fill="#fff"/>
+    <g fill="#14b8a6"><rect x="56" y="80" width="4" height="2" transform="rotate(30 58 81)"/><rect x="72" y="84" width="4" height="2"/><rect x="88" y="80" width="4" height="2" transform="rotate(-30 90 81)"/><rect x="102" y="84" width="4" height="2" transform="rotate(20 104 85)"/></g>
+    <g fill="#3b82f6"><rect x="64" y="86" width="4" height="2" transform="rotate(-20 66 87)"/><rect x="82" y="78" width="4" height="2" transform="rotate(50 84 79)"/></g>
+    <rect x="68" y="34" width="3.5" height="14" fill="#fbbf24"/><rect x="78.5" y="32" width="3.5" height="16" fill="#3b82f6"/><rect x="89" y="34" width="3.5" height="14" fill="#ef4444"/>
+    <circle cx="69.7" cy="30" r="9" fill="url(#gFlame)"/><circle cx="80.2" cy="28" r="9" fill="url(#gFlame)"/><circle cx="90.7" cy="30" r="9" fill="url(#gFlame)"/>
+    <path d="M69.7 25q-3 5 0 7q3-2 0-7zM80.2 23q-3 5 0 7q3-2 0-7zM90.7 25q-3 5 0 7q3-2 0-7z" fill="#ffae1f"/>
+  </g>
+  <g id="s-mtn">
+    <rect width="160" height="120" fill="url(#gMtn)"/>
+    <circle cx="118" cy="46" r="10" fill="#fff0c8" opacity=".85"/>
+    <path d="M0 74L28 46l22 22 20-30 24 36 18-18 48 30v10H0z" fill="#8d9fd6"/>
+    <path d="M18 88L62 20l42 68z" fill="#4a5da6"/>
+    <path d="M62 20l-14 24 8-3 6 6 5-7 8 5z" fill="#fff"/>
+    <path d="M62 20l12 20-5-3-4 6z" fill="#cfd8f2"/>
+    <path d="M70 88L116 36l48 52z" fill="#394a86"/><path d="M116 36l-13 15 7-2 6 6 4-5 7 4z" fill="#f4f6ff"/>
+    <rect y="86" width="160" height="34" fill="url(#gLake)"/>
+    <path d="M24 90h8M40 96h16M82 92h12M104 100h22M10 108h18" stroke="#fff" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M0 88q30-6 60 0v6H0z" fill="#2c4a3a"/>
+    <g fill="#1f4a35"><path d="M8 100l6-24 6 24zM20 100l5-18 5 18zM136 100l6-26 6 26zM148 100l5-18 5 18z"/></g>
+  </g>
+  <g id="s-sunset">
+    <rect width="160" height="120" fill="url(#gSun)"/>
+    <circle cx="96" cy="78" r="22" fill="#fff1a8"/>
+    <path d="M0 80h160v40H0z" fill="#2a1a45"/>
+    <path d="M70 84h50M62 90h64M74 96h42" stroke="#ffb04a" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>
+    <g fill="#160d2a"><rect x="6" y="56" width="14" height="30"/><rect x="22" y="66" width="10" height="20"/><rect x="34" y="48" width="12" height="38"/><rect x="48" y="62" width="16" height="24"/><rect x="118" y="60" width="12" height="26"/><rect x="132" y="50" width="14" height="36"/><rect x="148" y="64" width="12" height="22"/></g>
+    <g fill="#ffd36a"><rect x="9" y="60" width="2" height="2"/><rect x="14" y="68" width="2" height="2"/><rect x="38" y="54" width="2" height="2"/><rect x="38" y="64" width="2" height="2"/><rect x="136" y="56" width="2" height="2"/><rect x="140" y="66" width="2" height="2"/><rect x="52" y="68" width="2" height="2"/></g>
+  </g>
+  <g id="s-road">
+    <rect width="160" height="120" fill="url(#gRoadSky)"/>
+    <circle cx="120" cy="36" r="11" fill="#fff6d0"/>
+    <path d="M0 70Q30 46 64 66T130 56T160 66V120H0z" fill="#d9a46a"/>
+    <path d="M0 76Q40 56 90 72T160 70V120H0z" fill="#c4854c"/>
+    <path d="M70 62h20l60 58H10z" fill="#43474f"/>
+    <path d="M80 64v8M80 78v12M80 96v20" stroke="#fff3c4" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#2f6b3a"><path d="M20 88l5-14 5 14zM34 92l4-11 4 11z"/></g>
+  </g>
+  <g id="s-night">
+    <rect width="160" height="120" fill="url(#gNight)"/>
+    <g fill="#fff"><circle cx="20" cy="20" r="1.2"/><circle cx="60" cy="12" r="1"/><circle cx="104" cy="24" r="1.4"/><circle cx="140" cy="14" r="1"/><circle cx="80" cy="34" r="1"/></g>
+    <path d="M0 96L40 62l30 24 34-34 56 44v38H0z" fill="#1a2250"/>
+    <path d="M60 120l12-44 14 44z" fill="#e8742a"/><path d="M66 120l6-28 7 28z" fill="#ffd36a"/><path d="M50 118l30-6 30 6" stroke="#5a3a1a" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g id="s-receipt">
+    <rect width="160" height="120" fill="#f1f1f6"/>
+    <rect x="0" y="0" width="160" height="10" fill="#fff"/><rect x="8" y="3" width="14" height="4" rx="2" fill="#222"/><rect x="132" y="3" width="20" height="4" rx="2" fill="#222"/>
+    <rect x="34" y="14" width="92" height="102" fill="#fff" stroke="#ddd"/>
+    <text x="80" y="27" font-family="Menlo,monospace" font-size="7.5" font-weight="700" text-anchor="middle" fill="#222">CAFE NORD</text>
+    <g fill="#9aa"><rect x="42" y="34" width="50" height="3"/><rect x="104" y="34" width="14" height="3"/><rect x="42" y="42" width="40" height="3"/><rect x="104" y="42" width="14" height="3"/><rect x="42" y="50" width="56" height="3"/><rect x="104" y="50" width="14" height="3"/><rect x="42" y="58" width="34" height="3"/><rect x="104" y="58" width="14" height="3"/></g>
+    <rect x="42" y="68" width="76" height="1.4" fill="#444"/>
+    <text x="42" y="82" font-family="Menlo,monospace" font-size="7" font-weight="700" fill="#222">TOTAL</text><text x="118" y="82" font-family="Menlo,monospace" font-size="7" font-weight="700" text-anchor="end" fill="#222">18.40</text>
+    <g fill="#222"><rect x="46" y="92" width="1.5" height="14"/><rect x="50" y="92" width="3" height="14"/><rect x="56" y="92" width="1.5" height="14"/><rect x="60" y="92" width="2" height="14"/><rect x="66" y="92" width="3" height="14"/><rect x="72" y="92" width="1.5" height="14"/><rect x="77" y="92" width="3" height="14"/><rect x="84" y="92" width="1.5" height="14"/><rect x="88" y="92" width="2" height="14"/><rect x="94" y="92" width="3" height="14"/><rect x="100" y="92" width="1.5" height="14"/><rect x="104" y="92" width="3" height="14"/></g>
+  </g>
+  <g id="s-chat">
+    <rect width="160" height="120" fill="#fff"/>
+    <rect width="160" height="14" fill="#f4f4f8"/><circle cx="80" cy="7" r="4" fill="#ccd"/>
+    <rect x="10" y="22" width="84" height="18" rx="9" fill="#e9e9ee"/><rect x="66" y="46" width="84" height="26" rx="10" fill="#3b82f6"/><rect x="10" y="78" width="60" height="16" rx="8" fill="#e9e9ee"/><rect x="82" y="100" width="68" height="14" rx="7" fill="#3b82f6"/>
+    <g fill="#fff" opacity=".85"><rect x="74" y="53" width="60" height="3" rx="1.5"/><rect x="74" y="60" width="40" height="3" rx="1.5"/></g>
+    <g fill="#aab"><rect x="18" y="29" width="60" height="3" rx="1.5"/><rect x="18" y="84" width="40" height="3" rx="1.5"/></g>
+  </g>
+  <g id="s-map">
+    <rect width="160" height="120" fill="#e8f0e0"/>
+    <path d="M0 80Q60 60 100 90T160 70V120H0z" fill="#bcdcf2"/>
+    <g stroke="#fff" stroke-width="5" fill="none"><path d="M0 40L160 20M40 0L60 120M110 0L90 120"/></g>
+    <g stroke="#f6c85a" stroke-width="3" fill="none"><path d="M0 60L160 44"/></g>
+    <path d="M80 30a10 10 0 1 1 .1 0L80 52z" fill="#ef4444" transform="translate(0 0)"/><circle cx="80" cy="30" r="3.4" fill="#fff"/>
+  </g>
+</defs>
+</svg>
+
+<div class="page">
+
+<!-- HEADER -->
+<header class="hero" id="top">
+  <div>
+    <div class="eyebrow">
+      <svg viewBox="0 0 1024 1024" aria-label="PixelPare icon"><defs><linearGradient id="ib" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2AD0A0"/><stop offset="1" stop-color="#0A84FF"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#ib)"/><rect x="200" y="200" width="624" height="624" rx="70" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="22" stroke-dasharray="70 46"/><rect x="322" y="322" width="380" height="380" rx="46" fill="#fff"/><circle cx="440" cy="440" r="40" fill="#FFB020"/><path d="M352 672 L470 530 L540 604 L600 548 L672 630 V672Z" fill="#0A84FF"/><g stroke="#fff" stroke-width="26" stroke-linecap="round" fill="none"><path d="M232 232 L300 300 M300 248 V300 H248"/><path d="M792 792 L724 724 M724 776 V724 H776"/></g></svg>
+      <span class="silk">Design mocks · v0.3 · supersedes the “generic” v0.2 look</span>
+    </div>
+    <h1>PixelPare —<br><em>v0.3</em> playful mocks</h1>
+  </div>
+  <div>
+    <p><b>Pocket Workshop</b> is the primary direction: a tiny tactile machine on a warm workbench where reviewing a memory is something you <i>do with your hands</i>, not a bin you empty. Chunky modules, a backlit light table, a three-detent video press and a printed receipt replace the sidebar, storage donut and green check. Liquid Glass appears only on floating toolbars; photos always sit on opaque white. Two alternates (Pip, The Memory Edit) are included so you can compare vibes.</p>
+    <p>Safety is unchanged and visible in every screen: nothing is removed without your approval; swipes and shortcuts only <b>mark</b>; favorites are <b>protected</b>; at least one keeper per group; sizes are <b>estimates</b> until a copy exists; originals stay until you review them; Calm mode keeps every feature and disclosure.</p>
+    <nav class="toc">
+      <a href="#workbench"><b>1</b> Workbench</a><a href="#lighttable"><b>2</b> Light table</a><a href="#press"><b>3</b> Video press</a><a href="#receipt"><b>4</b> Receipt</a><a href="#iphone"><b>5</b> iPhone</a><a href="#calm"><b>6</b> Calm mode</a><a href="#taste"><b>B</b> Taste strip</a><a href="#delight"><b>C</b> Delight</a>
+    </nav>
+  </div>
+</header>
+
+<div class="band"><span>A · Primary direction — Pocket Workshop</span><span>warm bench · tactile modules · glass only for chrome</span></div>
+
+<!-- 1 WORKBENCH -->
+<section class="sec" id="workbench">
+  <div class="sec-head">
+    <div class="sec-no">01</div>
+    <div><h2>Mac — Workbench home</h2><span class="silk tag">Two machines, one honest gauge</span></div>
+    <div class="cap"><b>Signature interaction:</b> hover the Lookalike tray and the fanned cards lift out of the slot in 180 ms, then sit still; hover the Video press and the reel gives one slow quarter-turn. The needle gauge shows a <b>range</b> that stays an estimate — it never snaps to a single “you saved” number. Calm toggle sits in the toolbar from first launch.</div>
+  </div>
+  <div class="stage"><div class="mac bench" id="mac-home">
+    <div class="tb glass"><div class="lights"><i></i><i></i><i></i></div><span class="ttl">PixelPare</span><span class="silk">Workbench</span><span class="sp"></span><span class="silk">Last scan · 2 min ago</span><span class="toggle"><i></i>CALM</span><span class="btn alt sm">⟳ Rescan</span></div>
+    <div class="body"><div class="home-grid">
+      <div class="mod"><div class="silk-row"><span class="silk">Module 01 · Lookalike tray</span><span class="silk">photos</span></div>
+        <div class="tray">
+          <div class="l"><div class="sub" style="margin:0 0 8px;font-size:15px;color:var(--ink)">Let’s make some room.</div><div class="big-n">38<small>groups to look at</small></div>
+            <div class="sub" style="margin:14px 0 18px;max-width:250px">These shots belong together. Each group opens on the light table — nothing is marked until you do it.</div>
+            <div style="display:flex;gap:10px;align-items:center"><span class="btn">Open the tray</span><span class="silk">0 approved</span></div></div>
+          <div class="fan">
+            <div class="pcard" style="left:6px;top:78px;transform:rotate(-14deg)"><div class="ph-box" style="height:120px"><b class="ph" data-s="beach"></b></div><div style="height:22px"></div></div>
+            <div class="pcard" style="left:56px;top:58px;transform:rotate(-2deg)"><div class="ph-box" style="height:120px"><b class="ph" data-s="dog" data-v="0 0 160 120"></b></div><div style="height:22px"></div></div>
+            <div class="pcard" style="left:100px;top:82px;transform:rotate(12deg)"><div class="ph-box" style="height:120px"><b class="ph" data-s="cake"></b></div><div style="height:22px"></div></div>
+            <div class="slot"></div>
+            <div class="silk" style="position:absolute;right:4px;bottom:34px;z-index:6;color:#8a7d66">▲ tray</div>
+          </div>
+        </div></div>
+      <div class="mod press"><div class="silk-row"><span class="silk">Module 02 · Video press</span><span class="silk">videos</span></div>
+        <div class="reel-wrap">
+          <svg width="150" height="150" viewBox="0 0 150 150"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+            <circle cx="75" cy="75" r="68" fill="#2a251e"/><circle cx="75" cy="75" r="62" fill="url(#rg)"/><circle cx="75" cy="75" r="62" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2"/>
+            <g fill="#F8F4EB"><circle cx="75" cy="33" r="14"/><circle cx="75" cy="117" r="14"/><circle cx="33" cy="75" r="14"/><circle cx="117" cy="75" r="14"/><circle cx="45" cy="45" r="9" opacity=".0"/></g>
+            <g fill="#2a251e" opacity=".9"><circle cx="75" cy="33" r="5"/><circle cx="75" cy="117" r="5"/><circle cx="33" cy="75" r="5"/><circle cx="117" cy="75" r="5"/></g>
+            <circle cx="75" cy="75" r="16" fill="#F8F4EB"/><circle cx="75" cy="75" r="6" fill="#2a251e"/>
+            <path d="M14 14l16 16m-2-12v12h-12M136 136l-16-16m2 12v-12h12" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none" opacity=".9"/></svg>
+          <div><div class="big-n" style="font-size:54px">21<small>videos could travel lighter</small></div></div></div>
+        <div class="sub" style="margin:4px 0 14px">Pick Gentle, Balanced or Smaller resolution. The press makes a <b>second</b> reel — the original stays right where it is.</div>
+        <div style="display:flex;gap:10px;align-items:center"><span class="btn">Open the press</span><span class="chip est">ESTIMATE · sizes firm up as you preview</span></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;grid-column:1/3">
+        <div class="mod bundle" style="padding:18px 22px;display:flex;gap:18px;align-items:center"><div class="silk" style="position:absolute;left:44px;top:10px">Module 03 · Old screenshots</div>
+          <div style="position:relative;width:190px;height:150px;flex:none;margin-top:14px">
+            <div class="paper" style="left:12px;top:10px;width:110px;height:130px;transform:rotate(-8deg)"><b class="ph" data-s="chat"></b></div>
+            <div class="paper" style="left:36px;top:2px;width:110px;height:130px;transform:rotate(3deg)"><b class="ph" data-s="map"></b></div>
+            <div class="paper" style="left:58px;top:12px;width:110px;height:130px;transform:rotate(-2deg)"><b class="ph" data-s="receipt"></b></div>
+            <svg style="position:absolute;left:0;top:0" width="190" height="150" viewBox="0 0 190 150"><path d="M10 70Q90 80 180 62M96 22Q100 80 94 138" stroke="#c9534b" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M96 74q-18-22-26-8t26 8q18 -22 26-8t-26 8" fill="none" stroke="#c9534b" stroke-width="3.4" stroke-linecap="round"/><path d="M96 76l-12 20M96 76l12 22" stroke="#c9534b" stroke-width="3" stroke-linecap="round"/></svg></div>
+          <div><h3 style="font-size:21px">Old screenshots</h3><div class="sub">214 older than a year, tied up for later. Not automatically worthless — you open the bundle, you decide.</div><div style="margin-top:10px"><span class="btn alt sm">Untie the bundle</span></div></div></div>
+        <div class="mod gauge" style="padding:14px 22px 14px;display:flex;gap:16px;align-items:center"><div class="silk" style="position:absolute;left:44px;top:10px">Gauge · honest estimate</div>
+          <svg width="250" height="150" viewBox="0 0 260 150" style="margin-top:14px;flex:none">
+            <path d="M30 124A100 100 0 0 1 230 124Z" fill="#FFFEFA" stroke="#CDBFA5" stroke-width="2"/>
+            <path d="M30 124A100 100 0 0 1 230 124" fill="none" stroke="#2A251E" stroke-width="9" stroke-dasharray="1.5 19.4" opacity=".7"/>
+            <path d="M99.1 28.9A100 100 0 0 1 160.9 28.9" fill="none" stroke="#14B8A6" stroke-width="13" stroke-linecap="butt" opacity=".9"/>
+            <path d="M99.1 28.9A100 100 0 0 1 160.9 28.9" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 3" opacity=".8"/>
+            <g class="mono" font-size="10" font-weight="700" fill="#6E6355" text-anchor="middle"><text x="30" y="142">0</text><text x="80" y="42" transform="rotate(-0 80 42)">5</text><text x="180" y="42">10</text><text x="230" y="142">15 GB</text></g>
+            
+            <g class="a-wob"><path d="M130 124L127 50L130 36L133 50Z" fill="#E4553A"/></g>
+            <circle cx="130" cy="124" r="11" fill="#2A251E"/><circle cx="130" cy="124" r="4" fill="#F8F4EB"/></svg>
+          <div><div class="gauge lab">Could free about<br>6–9 GB · estimate</div><div class="sub" style="margin-top:8px">De-duplicated across modules, minus the size of smaller copies. Net library change — not a measured iCloud figure.</div></div></div>
+      </div>
+    </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- 2 LIGHT TABLE -->
+<section class="sec" id="lighttable">
+  <div class="sec-head">
+    <div class="sec-no">02</div>
+    <div><h2>Mac — Light table review</h2><span class="silk tag">One group, laid out and backlit</span></div>
+    <div class="cap"><b>Signature interaction:</b> pressing <span class="key">Space</span> on a candidate slides an amber paper tab out of its top edge with a small snap (“Marked”); pressing it again slides it back — an <b>Undo mark</b> that changes a selection, nothing more. The keeper’s teal corner tab is fixed. Favorites carry a heart shield and have no tab slot at all. Both loupes share one linked zoom; no photo is ever dimmed.</div>
+  </div>
+  <div class="stage"><div class="mac bench tall" id="mac-light">
+    <div class="tb glass"><div class="lights"><i></i><i></i><i></i></div><span class="ttl">Lookalike tray</span><span class="silk">› Group 3 of 38</span><span class="sp"></span><span class="hint"><span class="key">←</span><span class="key">→</span> photo</span><span class="hint"><span class="key">↑</span><span class="key">↓</span> group</span><span class="toggle"><i></i>CALM</span></div>
+    <div class="body" style="padding-bottom:110px"><div class="lt-wrap">
+      <div class="rail"><div class="silk" style="font-size:9px">Tray</div>
+        <div class="g"><div class="ph-box"><b class="ph" data-s="beach"></b></div><span class="st">✓</span></div>
+        <div class="g"><div class="ph-box"><b class="ph" data-s="cake"></b></div><span class="st m">1</span></div>
+        <div class="g cur"><div class="ph-box"><b class="ph" data-s="dog"></b></div></div>
+        <div class="g"><div class="ph-box"><b class="ph" data-s="mtn"></b></div></div>
+        <div class="g"><div class="ph-box"><b class="ph" data-s="sunset"></b></div></div>
+        <div class="g"><div class="ph-box"><b class="ph" data-s="road"></b></div></div>
+        <div class="silk" style="font-size:9px;text-align:center;margin-top:2px">+ 32 more</div></div>
+      <div class="table">
+        <div class="hdr"><div><div class="silk" style="color:var(--teal-d)">Backlit · opaque white · true colour</div><h3>Park walk · 12 Jul · 4 photos</h3></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="chip prev" style="background:#fff">🔍 Linked zoom 200%</span><span class="chip" style="background:#fff;border:1.5px solid #D8CFBE;color:var(--ink2)">Fit · 100% · 200%</span></div></div>
+        <div class="lt-grid">
+          <div class="lc keeper"><span class="ctab">★ Keeper · sharpest</span>
+            <div class="ph-box"><b class="ph" data-s="dog" data-v="0 20 160 80"></b><div class="loupe"><b class="ph" data-s="dog" data-v="54 42 24 24"></b><em>200%</em></div></div>
+            <div class="cp"><span><b>IMG_4821</b> · 4:12 pm</span><span>Suggested, not decided</span></div></div>
+          <div class="lc"><span class="mtab"><span>Marked</span></span>
+            <div class="ph-box"><b class="ph" data-s="dog" data-v="4 22 156 78" data-f="blur(1.1px)"></b><div class="loupe"><b class="ph" data-s="dog" data-v="54 42 24 24" data-f="blur(2.4px)"></b><em>200%</em></div></div>
+            <div class="cp"><span><b>IMG_4822</b> · 4:12 pm</span><span>Slightly soft · <b style="color:var(--amber-d)">undo mark ␣</b></span></div></div>
+          <div class="lc"><span class="mtab empty"><span>Mark ␣</span></span>
+            <div class="ph-box"><b class="ph" data-s="dog" data-v="0 18 158 82" data-f="blur(.5px)"></b><div class="loupe"><b class="ph" data-s="dog" data-v="54 42 24 24" data-f="blur(1.1px)"></b><em>200%</em></div></div>
+            <div class="cp"><span><b>IMG_4823</b> · 4:13 pm</span><span>Nearly the same as keeper</span></div></div>
+          <div class="lc"><div class="shield"><svg viewBox="0 0 22 24"><path d="M11 1L2 4.5v7C2 17 6 21 11 23c5-2 9-6 9-11.500v-7z" fill="#FFE1E8" stroke="#EC4468" stroke-width="1.6"/><path d="M11 17s-4.500-3-4.500-6a2.500 2.500 0 0 1 4.500-1.500A2.500 2.500 0 0 1 15.500 11c0 3-4.500 6-4.500 6z" fill="#EC4468"/></svg>Protected</div>
+            <div class="ph-box"><b class="ph" data-s="dog" data-v="10 10 150 100"></b><div class="loupe"><b class="ph" data-s="dog" data-v="54 42 24 24"></b><em>200%</em></div></div>
+            <div class="cp"><span><b>IMG_4824</b> · ♥ Favorite</span><span>Always kept — no mark slot</span></div></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="tray-bar glass">
+      <div><div class="silk" style="color:var(--ink)">Pending plan</div><div style="font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:-.02em">3 marked</div></div>
+      <div class="slots"><i class="f"><b class="ph" data-s="dog" data-f="blur(1px)"></b></i><i class="f"><b class="ph" data-s="cake"></b></i><i class="f"><b class="ph" data-s="beach"></b></i><i></i></div>
+      <div style="font-size:11.5px;color:var(--ink2);max-width:200px;line-height:1.35">Nothing is removed until you review the whole plan. Keeper kept in every group.</div>
+      <span style="flex:1"></span>
+      <span class="btn alt sm">Skip <span class="key">S</span></span><span class="btn alt sm">Keep group <span class="key">K</span></span><span class="btn sm">Approve group <span class="key">⏎</span></span>
+    </div>
+  </div></div>
+</section>
+
+<!-- 3 VIDEO PRESS -->
+<section class="sec" id="press">
+  <div class="sec-head">
+    <div class="sec-no">03</div>
+    <div><h2>Mac — Video press</h2><span class="silk tag">Three detents, a second reel</span></div>
+    <div class="cap"><b>Signature interaction:</b> the knob clicks into one of three detents with a single tick (optional wooden sound, off by default) and the plain-language settings update <i>before</i> any preview work begins. Pressing creates a <b>second reel beside the original</b>; originals are only offered for review after the new copy is verified. Estimates become <i>Preview ready</i> (sample-based) and finally <i>Final</i>.</div>
+  </div>
+  <div class="stage"><div class="mac bench" id="mac-press">
+    <div class="tb glass"><div class="lights"><i></i><i></i><i></i></div><span class="ttl">Video press</span><span class="silk">› Step 1 of 2 · make smaller copies</span><span class="sp"></span><span class="chip est" style="background:#fff">21 eligible · 2 skipped (why?)</span><span class="toggle"><i></i>CALM</span></div>
+    <div class="body"><div class="vp">
+      <div class="mod knob-mod"><div class="silk-row"><span class="silk">Module 02 · Setting</span><span class="silk">3 detents</span></div>
+        <svg viewBox="0 0 300 232" width="100%" style="display:block">
+          <defs><linearGradient id="kb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b443a"/><stop offset="1" stop-color="#1e1a15"/></linearGradient><linearGradient id="kc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#3b82f6"/></linearGradient><filter id="ks"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#2a1a05" flood-opacity=".45"/></filter></defs>
+          <g stroke="#2A251E" stroke-width="2.4" stroke-linecap="round" opacity=".6"><path d="M62 130l-9-7M72 112l-10-5M86 98l-8-8M104 87l-6-9M124 82l-3-10M176 82l3-10M196 87l6-9M214 98l8-8M228 112l10-5M238 130l9-7"/></g>
+          <circle cx="47" cy="124" r="5" fill="#C9BFA9"/><circle cx="150" cy="24" r="5" fill="var(--teal)"/><circle cx="150" cy="24" r="9" fill="none" stroke="var(--teal)" opacity=".4"/><circle cx="253" cy="124" r="5" fill="#C9BFA9"/>
+          <g class="mono" font-size="11" font-weight="700" fill="#2A251E" letter-spacing=".6"><text x="40" y="146" text-anchor="middle">GENTLE</text><text x="150" y="12" text-anchor="middle">BALANCED</text><text x="258" y="146" text-anchor="middle">SMALLER RES</text></g>
+          <g filter="url(#ks)"><circle cx="150" cy="140" r="66" fill="url(#kb)"/><circle cx="150" cy="140" r="66" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="2"/>
+          <g stroke="#000" stroke-opacity=".5" stroke-width="2.2"><path id="grip" d="M150 76v6"/></g>
+          <circle cx="150" cy="140" r="52" fill="url(#kc)"/><circle cx="150" cy="140" r="52" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2"/>
+          <ellipse cx="136" cy="118" rx="26" ry="14" fill="#fff" opacity=".22" transform="rotate(-30 136 118)"/>
+          <path d="M150 140V96" stroke="#fff" stroke-width="7" stroke-linecap="round"/></g>
+          <circle cx="150" cy="140" r="6" fill="#fff" opacity=".9"/></svg>
+        <div class="opt"><i class="led"></i><div><b>Gentle</b><span>Least compression. Keeps resolution &amp; frame rate.</span></div></div>
+        <div class="opt on"><i class="led"></i><div><b>Balanced</b><span>Smaller files. Keeps resolution &amp; frame rate; fine detail may change.</span></div></div>
+        <div class="opt"><i class="led"></i><div><b>Smaller resolution</b><span>Caps at 1080p, never upscales. Keeps frame rate. More detail loss on large screens.</span></div></div>
+        <div class="silk" style="margin:16px 0 6px">What this setting does</div>
+        <div style="font-size:12px;color:var(--ink2);line-height:1.6;border-top:1.5px dashed #CDBFA5;padding-top:8px">HEVC copy added beside the original · audio kept · date, location, favorite &amp; albums carried over where Photos allows (shared albums may differ) · no custom sliders in v1.</div>
+      </div>
+      <div><div class="silk-row" style="margin-top:2px"><span class="silk">The reel · selected videos</span><span class="silk">tap a row to preview</span></div>
+        <div class="vrow sel"><div class="th ph-box"><b class="ph" data-s="road"></b><span class="play"></span></div><div><b>Road trip</b><div class="m">4K · 60 fps · 2:41 · H.264 · on this Mac</div></div><div class="sz"><span class="n">1.9 GB → ≈1.0–1.3 GB</span><span class="chip prev">● PREVIEW READY · sample-based</span></div></div>
+        <div class="vrow"><div class="th ph-box"><b class="ph" data-s="mtn"></b><span class="play"></span></div><div><b>Skate park</b><div class="m">4K · 30 fps · 1:12 · in iCloud only · download 1.2 GB</div></div><div class="sz"><span class="n">1.2 GB → ≈0.6–0.8 GB</span><span class="chip est">ESTIMATE</span></div></div>
+        <div class="vrow"><div class="th ph-box"><b class="ph" data-s="cake"></b><span class="play"></span></div><div><b>Maya’s birthday</b><div class="m">1080p · 30 fps · 0:48 · verified copy added</div></div><div class="sz"><span class="n">0.80 GB → 0.41 GB</span><span class="chip fin">✓ FINAL · verified</span></div></div>
+        <div class="vrow"><div class="th ph-box"><b class="ph" data-s="beach"></b><span class="play"></span></div><div><b>Beach day</b><div class="m">size not available until downloaded</div></div><div class="sz"><span class="n">— → ?</span><span class="chip unk">SIZE UNKNOWN</span></div></div>
+        <div class="vrow"><div class="th ph-box"><b class="ph" data-s="sunset"></b><span class="play"></span></div><div><b>Sunset from the roof</b><div class="m">♥ Favorite · copy possible, original always kept</div></div><div class="sz"><span class="n">0.7 GB → ≈0.4 GB</span><span class="chip prot">♥ ORIGINAL PROTECTED</span></div></div>
+        <div class="safety" style="margin-top:12px"><span style="font-size:18px">⚑</span><div><b>Skipped, with reasons:</b> 2 videos are HDR (Dolby Vision) — not supported yet. “Already travels light” items are listed, not hidden.</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="finder"><div class="silk" style="color:#cfc6b6;margin-bottom:9px;display:flex;justify-content:space-between"><span>Viewfinder · Road trip · 100%</span><span>linked pan</span></div>
+          <div class="screen"><div class="half" style="left:0;width:100%"><b class="ph" data-s="road" data-v="20 40 90 68"></b></div>
+            <div class="half" style="left:50%;right:0;overflow:hidden"><svg class="ph" viewBox="20 40 90 68" preserveAspectRatio="xMidYMid slice" style="position:absolute;left:-100%;width:200%;height:100%"><use href="#s-road"/></svg></div>
+            <span class="lbl" style="left:8px">ORIGINAL · 4K</span><span class="lbl" style="right:8px">BALANCED · preview</span><div class="split"></div></div>
+          <div class="ctl"><span>▶</span><span class="scrub"></span><span>0:38 / 2:41</span></div>
+          <div class="ctl" style="margin-top:6px;color:#9d9484">Preview is a few seconds sampled from the file — it estimates, it doesn’t promise.</div></div>
+        <div class="mod" style="padding:16px 20px 18px"><div class="silk" style="margin-bottom:8px">Plan · Balanced · 5 videos</div>
+          <div style="font-size:13px;line-height:1.6"><div class="ln" style="display:flex;justify-content:space-between"><span>New smaller copies</span><b class="mono">≈ 2.6–3.2 GB</b></div><div style="display:flex;justify-content:space-between"><span>Downloads from iCloud</span><b class="mono">1.2 GB</b></div><div style="display:flex;justify-content:space-between"><span>Originals removed</span><b class="mono">0 — you review later</b></div></div>
+          <div style="margin:14px 0 10px"><span class="btn xl" style="display:flex;width:100%">Press smaller copies ⏎</span></div>
+          <div style="font-size:12px;text-align:center;color:var(--ink2)"><b style="color:var(--ink)">Originals stay until you review them.</b><br>Step 2 offers “Review originals” after copies are verified.</div></div>
+      </div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- 4 RECEIPT -->
+<section class="sec" id="receipt">
+  <div class="sec-head">
+    <div class="sec-no">04</div>
+    <div><h2>Mac — The receipt</h2><span class="silk tag">An itemised ledger, not a victory lap</span></div>
+    <div class="cap"><b>Signature interaction:</b> the receipt prints out of the slot once, line by line, and is then static. It lists kept and failed items as plainly as removed ones — “Originals kept” is a good outcome. Keeping both copies is a valid result and is never counted as space saved. Unknowns are printed as unknowns.</div>
+  </div>
+  <div class="stage"><div class="mac bench" id="mac-receipt" style="height:830px">
+    <div class="tb glass"><div class="lights"><i></i><i></i><i></i></div><span class="ttl">Receipts</span><span class="silk">› Today · 14:07</span><span class="sp"></span><span class="btn alt sm">Share…</span><span class="btn alt sm">How to recover in Photos</span></div>
+    <div class="printer"><div class="leds"><i></i><i style="background:#C9BFA9;box-shadow:none"></i><span class="silk" style="margin-left:8px">receipt printer · idle</span></div><div class="slit"></div></div>
+    <div class="note-l"><div><b>Kept is a result</b>31 originals stay exactly where they are. Nothing in this list was removed without a group approval and a separate plan confirmation.</div><div><b>Both copies</b>Where you kept an original and its smaller copy, we don’t call it saved space.</div></div>
+    <div class="note-r"><div><b>Estimate, not quota</b>“Net library reduction” is our estimate of Photos library size. iCloud’s own figure may update later — or differently.</div><div><b>Recovery</b>Removed items are normally recoverable in Photos for 30 days. Please don’t empty Recently Deleted just to “finish”.</div></div>
+    <div class="receipt" style="top:150px">
+      <div class="ctr"><h4>PIXELPARE</h4><div class="sm" style="margin-top:3px">POCKET WORKSHOP · RECEIPT No. 0007<br>09 OCT 2026 · 14:07 · MAC</div></div>
+      <hr>
+      <div class="ln"><span>Groups reviewed</span><i></i><b>12</b></div>
+      <div class="ln"><span>Photos marked</span><i></i><b>19</b></div>
+      <div class="nb"><span>· approved by you, group by group</span></div>
+      <div class="ln" style="margin-top:6px"><span>Smaller copies created</span><i></i><b>14</b></div>
+      <div class="nb"><span>· verified: plays fully, same length</span></div>
+      <div class="ln" style="margin-top:6px"><span>Copies failed (retry later)</span><i></i><b>1</b></div>
+      <div class="ln" style="margin-top:6px"><span>Originals kept</span><i></i><b>31</b></div>
+      <div class="ln" style="margin-top:6px"><span>Originals removed → Recently Deleted</span><i></i><b>19</b></div>
+      <hr>
+      <div class="ln tot"><span>NET LIBRARY REDUCTION</span><i></i><b>≈ 2.3 GB</b></div>
+      <div class="nb"><span>estimate · copies already subtracted</span></div>
+      <div class="ln" style="margin-top:8px"><span>Unknown</span><i></i><b>2 videos</b></div>
+      <div class="nb"><span>size not known until downloaded</span></div>
+      <hr>
+      <div class="sm">▸ Removed items are normally recoverable from Recently Deleted in Photos for 30 days. If your iCloud storage is over its limit, they may not be recoverable. Items there don’t count toward iCloud storage; reporting may take time to update.<br>▸ Removal applies on all your devices signed in to iCloud Photos.</div>
+      <div class="barcode"></div>
+      <div class="ctr sm" style="margin-top:6px;letter-spacing:.2em">THANK YOU FOR KEEPING WHAT MATTERS</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- 5 IPHONE -->
+<section class="sec" id="iphone">
+  <div class="sec-head">
+    <div class="sec-no">05</div>
+    <div><h2>iPhone — three screens</h2><span class="silk tag">Same machine, thumb-sized</span></div>
+    <div class="cap"><b>Signature interaction:</b> every gesture has a labelled button. Swiping a photo may <b>mark</b> it (never remove); <b>Mark</b>, <b>Keep</b>, <b>Keep group</b> do the same with thumbs. On the press, dragging the thumb across the track ticks once per detent (light haptic, optional) and the receipt slides up from the bottom edge when a press finishes.</div>
+  </div>
+  <div class="phones">
+    <!-- phone 1 -->
+    <div class="phone"><div class="screen-ph bench"><div class="island"></div><div class="sbar"><span>9:41</span><span>●●● ▮</span></div><div class="hbar"></div>
+      <div class="ph-nav glass"><b>Workbench</b><span class="toggle"><i></i>CALM</span></div>
+      <div class="ph-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="mod pm" style="padding-bottom:12px"><div class="silk" style="margin-bottom:6px">01 · Lookalike tray</div>
+          <div style="display:flex;gap:10px;align-items:center"><div style="position:relative;width:128px;height:100px;flex:none"><div class="pcard" style="position:absolute;left:2px;top:14px;width:84px;transform:rotate(-12deg)"><div class="ph-box" style="height:56px"><b class="ph" data-s="beach"></b></div><div style="height:12px"></div></div><div class="pcard" style="position:absolute;left:22px;top:4px;width:84px;transform:rotate(3deg)"><div class="ph-box" style="height:56px"><b class="ph" data-s="dog"></b></div><div style="height:12px"></div></div><div class="slot" style="height:38px;left:-4px;right:-4px;bottom:-2px"></div></div>
+          <div><div class="big-n" style="font-size:42px">38<small style="font-size:14px">groups to look at</small></div></div></div>
+          <div style="margin-top:10px"><span class="btn sm">Open the tray</span></div></div>
+        <div class="mod pm" style="padding-bottom:12px"><div class="silk" style="margin-bottom:6px">02 · Video press</div>
+          <div style="display:flex;gap:12px;align-items:center"><svg width="74" height="74" viewBox="0 0 150 150"><circle cx="75" cy="75" r="68" fill="#2a251e"/><circle cx="75" cy="75" r="62" fill="url(#rg)"/><g fill="#F8F4EB"><circle cx="75" cy="33" r="14"/><circle cx="75" cy="117" r="14"/><circle cx="33" cy="75" r="14"/><circle cx="117" cy="75" r="14"/></g><g fill="#2a251e"><circle cx="75" cy="33" r="5"/><circle cx="75" cy="117" r="5"/><circle cx="33" cy="75" r="5"/><circle cx="117" cy="75" r="5"/></g><circle cx="75" cy="75" r="16" fill="#F8F4EB"/><circle cx="75" cy="75" r="6" fill="#2a251e"/></svg>
+          <div style="flex:1"><div style="font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:-.02em;line-height:1.1">21 videos could travel lighter</div><div class="sub" style="font-size:12px">A second reel; originals stay.</div></div></div>
+          <div style="margin-top:10px"><span class="btn sm">Open the press</span></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="mod pm" style="padding:12px"><div class="silk" style="font-size:9px">03 · Screenshots</div>
+            <div style="position:relative;height:84px;margin:8px 0 6px"><div class="paper" style="left:12px;top:4px;width:56px;height:72px;transform:rotate(-8deg)"><b class="ph" data-s="chat"></b></div><div class="paper" style="left:36px;top:2px;width:56px;height:72px;transform:rotate(5deg)"><b class="ph" data-s="receipt"></b></div><svg style="position:absolute;left:0;top:0" width="120" height="84" viewBox="0 0 120 84"><path d="M4 38Q60 46 112 34M62 8Q64 46 60 78" stroke="#c9534b" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg></div>
+            <div style="font-size:12px;font-weight:700">214 old ones, for later</div></div>
+          <div class="mod pm" style="padding:12px"><div class="silk" style="font-size:9px">Gauge · estimate</div>
+            <svg viewBox="0 0 260 150" width="100%" style="margin-top:4px"><path d="M30 124A100 100 0 0 1 230 124Z" fill="#FFFEFA" stroke="#CDBFA5" stroke-width="3"/><path d="M99.1 28.9A100 100 0 0 1 160.9 28.9" fill="none" stroke="#14B8A6" stroke-width="16"/><path d="M130 124L126 50L130 34L134 50Z" fill="#E4553A"/><circle cx="130" cy="124" r="13" fill="#2A251E"/></svg>
+            <div style="font-size:11.5px;font-weight:700;font-family:var(--mono);line-height:1.3">Could free about 6–9 GB · estimate</div></div>
+        </div>
+        <div class="safety" style="font-size:11px;padding:9px 12px"><div><b>Nothing is removed</b> without your approval. Favorites are protected.</div></div>
+      </div>
+      <div class="tabbar glass"><span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15l3-4 3 3 2-2 3 3"/></svg>Workbench</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Receipts</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>Settings</span></div>
+    </div></div>
+    <!-- phone 2 -->
+    <div class="phone"><div class="screen-ph" style="background:radial-gradient(100% 70% at 50% 30%,#fff,#E6F1F1)"><div class="island"></div><div class="sbar"><span>9:41</span><span>●●● ▮</span></div><div class="hbar"></div>
+      <div class="ph-nav glass"><b>‹ Tray</b><span class="silk">Group 3 of 38</span><span class="toggle"><i></i>CALM</span></div>
+      <div class="ph-body" style="padding-top:112px">
+        <div class="lc keeper" style="padding:7px 7px 0"><span class="ctab" style="font-size:10px;padding:5px 11px 5px 9px">★ Keeper · sharpest</span><div class="ph-box" style="height:274px"><b class="ph" data-s="dog" data-v="0 10 160 100"></b><div class="loupe" style="width:78px;height:78px"><b class="ph" data-s="dog" data-v="54 42 24 24"></b><em>200%</em></div></div><div class="cp" style="height:32px"><span><b>IMG_4821</b> · 4:12 pm</span><span>Suggested, not decided</span></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:24px 4px 0">
+          <div class="lc" style="padding:5px 5px 0"><span class="mtab" style="width:76px;height:22px;font-size:9px;right:6px;top:-17px"><span style="margin-left:8px">Marked</span></span><div class="ph-box" style="height:78px"><b class="ph" data-s="dog" data-v="4 22 156 78" data-f="blur(1px)"></b></div><div class="cp" style="height:22px;font-size:9.5px">4822</div></div>
+          <div class="lc" style="padding:5px 5px 0"><span class="mtab empty" style="width:76px;height:22px;font-size:9px;right:6px;top:-17px"><span>Mark</span></span><div class="ph-box" style="height:78px"><b class="ph" data-s="dog" data-v="0 18 158 82" data-f="blur(.5px)"></b></div><div class="cp" style="height:22px;font-size:9.5px">4823</div></div>
+          <div class="lc" style="padding:5px 5px 0"><div class="shield" style="left:4px;top:4px;padding:2px 7px 2px 3px;font-size:8.5px"><svg viewBox="0 0 22 24" style="width:14px;height:15px"><path d="M11 1L2 4.5v7C2 17 6 21 11 23c5-2 9-6 9-11.500v-7z" fill="#FFE1E8" stroke="#EC4468" stroke-width="2"/><path d="M11 17s-4.500-3-4.500-6a2.500 2.500 0 0 1 4.500-1.500A2.500 2.500 0 0 1 15.500 11c0 3-4.500 6-4.500 6z" fill="#EC4468"/></svg>Protected</div><div class="ph-box" style="height:78px"><b class="ph" data-s="dog" data-v="10 10 150 100"></b></div><div class="cp" style="height:22px;font-size:9.5px">♥ 4824</div></div>
+        </div>
+        <div class="bigbtns" style="margin-top:22px"><div class="thumb-btn mark">Mark<small>undoable</small></div><div class="thumb-btn keep">Keep<small>this photo</small></div><div class="thumb-btn kg">Keep group <span style="font-family:var(--mono);font-size:11px;opacity:.85;font-weight:600">whole moment</span></div></div>
+        <div style="text-align:center;font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:12px;line-height:1.5">Swipe ← mark · → keep · ↑ keep group — optional.<br>Swipes only mark. Pending plan: <b style="color:var(--ink)">3 marked</b> · nothing removed.</div>
+      </div></div></div>
+    <!-- phone 3 -->
+    <div class="phone"><div class="screen-ph bench"><div class="island"></div><div class="sbar"><span>9:41</span><span>●●● ▮</span></div><div class="hbar"></div>
+      <div class="ph-nav glass"><b>‹ Video press</b><span class="silk">Step 1 of 2</span></div>
+      <div class="ph-body" style="padding-top:110px">
+        <div class="mod pm"><div class="silk" style="margin-bottom:0">Setting · detent</div>
+          <div class="hslider"><div class="track"></div><i class="nt" style="left:7%"></i><i class="nt" style="left:50%"></i><i class="nt" style="left:93%"></i><div class="th" style="left:50%"></div>
+            <div class="lb" style="left:12%">Gentle</div><div class="lb" style="left:50%;color:var(--teal-d)">Balanced</div><div class="lb" style="left:88%">Smaller res.</div></div>
+          <div class="opt on" style="margin-top:2px"><i class="led"></i><div><b>Balanced</b><span>Smaller files. Keeps resolution &amp; frame rate; fine detail may change.</span></div></div></div>
+        <div class="vrow" style="margin-top:12px;grid-template-columns:64px 1fr;padding:8px"><div class="th ph-box" style="height:46px"><b class="ph" data-s="road"></b><span class="play"></span></div><div><b style="font-size:13px">Road trip · 4K 60</b><div class="m">1.9 GB → ≈1.0–1.3 GB</div><span class="chip prev" style="margin-top:4px;font-size:9.5px">● PREVIEW READY · sample-based</span></div></div>
+        <div class="vrow" style="grid-template-columns:64px 1fr;padding:8px;margin-bottom:0"><div class="th ph-box" style="height:46px"><b class="ph" data-s="mtn"></b><span class="play"></span></div><div><b style="font-size:13px">Skate park · 4K 30</b><div class="m">1.2 GB → ≈0.6–0.8 GB · download 1.2 GB</div><span class="chip est" style="margin-top:4px;font-size:9.5px">ESTIMATE</span></div></div>
+        <div style="display:flex;gap:8px;margin-top:10px"><span class="chip fin">✓ FINAL · verified</span><span class="chip unk">SIZE UNKNOWN</span><span class="chip prot">♥ PROTECTED</span></div>
+        <div style="margin-top:12px"><span class="btn xl" style="display:flex;font-size:17px;padding:15px">Press smaller copies</span></div>
+        <div style="text-align:center;font-size:11.5px;color:var(--ink2);margin-top:12px"><b style="color:var(--ink)">Originals stay until you review them.</b></div>
+      </div>
+      <div class="peek"><div class="silk" style="text-align:center;margin-bottom:6px">▼ Last receipt · No. 0006</div>
+        <div class="ln"><span>Smaller copies created</span><i></i><b>14</b></div><div class="ln"><span>Originals kept</span><i></i><b>31</b></div><div class="ln"><span>Net library reduction</span><i></i><b>≈ 2.3 GB est.</b></div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- 6 CALM -->
+<section class="sec" id="calm">
+  <div class="sec-head">
+    <div class="sec-no">06</div>
+    <div><h2>Mac — Calm mode</h2><span class="silk tag">Same layout, same safety, quieter</span></div>
+    <div class="cap"><b>Proof it exists:</b> the light table above, with Calm on — flat neutral surfaces, no grain, no tab tilt or snap, no sounds or haptics, no easter eggs. Identical controls, identical disclosures. Reduce Motion, Reduce Transparency, Increase Contrast and Dynamic Type are honoured independently of this toggle.</div>
+  </div>
+  <div class="stage calm-note"><div class="calm-frame" id="calm-slot"></div>
+    <div style="max-width:300px;font-size:13px;color:#4a4136;line-height:1.55"><div class="silk" style="margin-bottom:6px;color:var(--teal-d)">What changes</div>
+      ✓ Flat, neutral surfaces<br>✓ Stationary cards, no animation<br>✓ No sounds, no haptics<br>✓ Plain copy, no quips<br>✓ Same keeper, marks, protection &amp; plan<br><br><div class="silk" style="margin-bottom:6px;color:var(--teal-d)">What doesn’t</div>Every control, every safety disclosure, every estimate label.</div></div>
+</section>
+
+<div class="band"><span>B · Taste strip — two alternates, one iPhone home each</span><span>compare vibes, not features</span></div>
+
+<section class="sec" id="taste" style="padding-top:44px">
+  <div class="taste">
+    <figure><div class="phone"><div class="screen-ph" style="background:linear-gradient(170deg,#CFF5EE 0%,#D7E8FF 70%,#F4F1FF 100%)"><div class="island"></div><div class="sbar"><span>9:41</span><span>●●● ▮</span></div><div class="hbar"></div>
+      <div class="ph-body" style="padding-top:66px;display:flex;flex-direction:column;align-items:center">
+        <div class="silk" style="color:var(--teal-d)">Pip · memory porter</div>
+        <svg viewBox="0 0 260 250" width="290" style="margin-top:4px;overflow:visible" class="a-bob">
+          <defs><linearGradient id="pf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#EAF1F6"/></linearGradient><filter id="psh"><feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#0a4a80" flood-opacity=".3"/></filter></defs>
+          <ellipse cx="130" cy="236" rx="70" ry="9" fill="#0a4a80" opacity=".15"/>
+          <g stroke="#3B82F6" stroke-width="9" stroke-linecap="round" fill="none"><path d="M96 200v22M164 200v22"/></g>
+          <g filter="url(#psh)"><path d="M52 40h124l32 32v130a14 14 0 0 1-14 14H52a14 14 0 0 1-14-14V54a14 14 0 0 1 14-14z" fill="url(#pf)"/><path d="M176 40l32 32h-18a14 14 0 0 1-14-14z" fill="#CBD9E6"/></g>
+          <rect x="54" y="132" width="138" height="52" rx="8" fill="#BFEBE4" opacity=".0"/>
+          <path d="M44 190l40-36 28 26 24-20 50 44v6H44z" fill="#14B8A6" opacity=".3"/>
+          <circle cx="92" cy="104" r="9" fill="#1c2a3a"/><circle cx="95" cy="101" r="3" fill="#fff"/><circle cx="154" cy="104" r="9" fill="#1c2a3a"/><circle cx="157" cy="101" r="3" fill="#fff"/>
+          <path d="M108 124q16 14 30 0" stroke="#1c2a3a" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <circle cx="76" cy="122" r="8" fill="#FFB5C0" opacity=".7"/><circle cx="172" cy="122" r="8" fill="#FFB5C0" opacity=".7"/>
+          <circle cx="66" cy="62" r="7" fill="#FFB020"/>
+          <g stroke="url(#pa)" stroke-width="15" stroke-linecap="round" fill="none" class="a-arr"><path d="M26 150L2 126M2 146V126H22" stroke="#14B8A6"/></g>
+          <g stroke="#3B82F6" stroke-width="15" stroke-linecap="round" fill="none" class="a-arr"><path d="M222 150l24-24M246 146v-20h-20"/></g>
+        </svg>
+        <div style="font-family:var(--disp);font-size:30px;font-weight:800;letter-spacing:-.03em;margin-top:6px">I found some lookalikes.</div>
+        <div style="font-size:14px;color:var(--ink2);margin:2px 0 14px">Keeping them all is fine.</div>
+        <div style="display:grid;gap:10px;width:100%">
+          <div style="background:#fff;border-radius:22px;padding:13px 16px;box-shadow:0 8px 16px -6px rgba(10,70,130,.3);display:flex;gap:12px;align-items:center"><div class="pcard" style="width:52px;padding:3px 3px 0;transform:rotate(-5deg)"><div class="ph-box" style="height:38px"><b class="ph" data-s="beach"></b></div><div style="height:7px"></div></div><div style="flex:1"><b style="font-size:16px">38 lookalike groups</b><div style="font-size:12px;color:var(--ink2)">You decide each one. Pip waits outside.</div></div><span style="color:var(--blue);font-weight:800">›</span></div>
+          <div style="background:#fff;border-radius:22px;padding:13px 16px;box-shadow:0 8px 16px -6px rgba(10,70,130,.3);display:flex;gap:12px;align-items:center"><svg width="52" height="52" viewBox="0 0 150 150" style="flex:none"><circle cx="75" cy="75" r="68" fill="#2a251e"/><circle cx="75" cy="75" r="62" fill="url(#rg)"/><g fill="#F8F4EB"><circle cx="75" cy="33" r="14"/><circle cx="75" cy="117" r="14"/><circle cx="33" cy="75" r="14"/><circle cx="117" cy="75" r="14"/></g><circle cx="75" cy="75" r="16" fill="#F8F4EB"/></svg><div style="flex:1"><b style="font-size:16px">21 videos could travel lighter</b><div style="font-size:12px;color:var(--ink2)">Pip carries a smaller copy. Originals stay.</div></div><span style="color:var(--blue);font-weight:800">›</span></div>
+        </div>
+        <div style="background:#fff;border-radius:22px;padding:13px 16px;box-shadow:0 8px 16px -6px rgba(10,70,130,.3);display:flex;gap:12px;align-items:center;margin-top:10px;width:100%"><div class="pcard" style="width:52px;padding:3px 3px 0;transform:rotate(4deg)"><div class="ph-box" style="height:38px"><b class="ph" data-s="receipt"></b></div><div style="height:7px"></div></div><div style="flex:1"><b style="font-size:16px">214 old screenshots</b><div style="font-size:12px;color:var(--ink2)">Tied up for later. Not automatically worthless.</div></div><span style="color:var(--blue);font-weight:800">›</span></div>
+        <div style="font-size:11px;color:var(--ink2);margin-top:12px;font-family:var(--mono)">Could free about 6–9 GB · estimate · Pip steps away during photo review</div>
+      </div></div></div>
+      <figcaption><b>Pip, the memory porter</b>A folded photo-card creature whose arms are the icon’s shrink arrows. Warm and shareable, but riskier: no hunger, streaks or sadness; Pip leaves the room during sensitive review and is equally happy if everything is kept.</figcaption></figure>
+
+    <figure><div class="phone"><div class="screen-ph" style="background:#F6F1E7"><div class="island"></div><div class="sbar"><span>9:41</span><span>●●● ▮</span></div><div class="hbar"></div>
+      <div style="position:absolute;inset:0;padding:64px 26px 0;font-family:var(--serif);color:#1b1712;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;border-bottom:1.5px solid #1b1712;padding-bottom:6px"><span>Issue 07 · October</span><span>Your library, edited</span></div>
+        <div style="font-size:50px;line-height:.92;font-weight:700;letter-spacing:-.03em;margin-top:12px;font-style:italic">The Memory<br>Edit</div>
+        <div style="font-family:var(--serif);font-size:15px;margin-top:8px;color:#4a4136;font-style:italic">A little room for what’s next.</div>
+        <div style="position:relative;margin-top:16px;height:268px;overflow:hidden;border-radius:2px"><b class="ph" data-s="mtn" style="position:absolute;inset:0;width:100%;height:100%"></b>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:44px 16px 14px;background:linear-gradient(transparent,rgba(10,14,40,.72));color:#fff"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.9">Story one</div><div style="font-size:34px;font-weight:700;line-height:1;letter-spacing:-.02em;margin-top:2px">The lookalikes</div><div style="font-size:13px;opacity:.92;margin-top:5px;font-family:var(--serif)">38 groups · Which frame tells the story?</div></div></div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:12px;margin-top:12px">
+          <div style="position:relative;height:120px;overflow:hidden;border-radius:2px"><b class="ph" data-s="night" style="position:absolute;inset:0;width:100%;height:100%"></b><div style="position:absolute;left:0;right:0;bottom:0;padding:18px 10px 9px;background:linear-gradient(transparent,rgba(5,8,30,.8));color:#fff"><div style="font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase">Story two</div><div style="font-size:21px;font-weight:700;line-height:1.02">The long films</div><div style="font-size:11px;opacity:.9">21 videos · a lighter copy</div></div></div>
+          <div style="border-top:3px solid #1b1712;padding-top:7px"><div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-d)">In the margin</div><div style="font-size:12.5px;line-height:1.35;margin-top:3px">Could free about <b>6–9 GB</b>. An estimate. Nothing leaves without your yes.</div></div></div>
+        <div style="margin-top:16px;font-size:23px;line-height:1.15;font-style:italic;letter-spacing:-.01em;padding:0 4px">“Nothing leaves without your yes.”</div>
+        <div style="margin-top:auto;margin-bottom:26px;border-top:1.5px solid #1b1712;padding-top:8px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase"><span>Contents</span><span>Old screenshots p.14</span><span>Your edit →</span></div>
+      </div></div></div>
+      <figcaption><b>The Memory Edit</b>Your library as a small independent magazine: oversized serif type, white margins, annotations not verdicts. The cheapest and calmest to ship — but it leans on style, so utility has to stay one tap away.</figcaption></figure>
+  </div>
+</section>
+
+<div class="band"><span>C · Delight moments — eight small, skippable, millisecond-long</span><span>sound off by default · Calm mode removes all</span></div>
+
+<section class="sec" id="delight" style="padding-top:36px">
+  <div class="dgrid">
+    <div class="dv"><div class="art"><div class="mini" style="margin-top:20px"><div class="mtab a-snap" style="right:10px;width:90px;height:24px;font-size:10px;top:-22px"><span>Marked</span></div><div class="ph-box"><b class="ph" data-s="dog" data-f="blur(1px)"></b></div><div class="cp">IMG_4822</div></div></div><div class="tx"><span class="silk">#4 · Mark candidate</span><h4>Marked tab snap</h4><p>A paper tab slides out with one light snap and the word “Marked”. Undo slides it back in 120 ms — no recovery claims.</p></div></div>
+    <div class="dv"><div class="art"><div class="mini" style="margin-top:6px;box-shadow:0 0 0 3px var(--teal),0 10px 18px -5px rgba(10,100,100,.4)"><span class="ctab a-unfold" style="font-size:10px;padding:5px 10px">★ Keeper · sharpest</span><div class="ph-box"><b class="ph" data-s="dog"></b></div><div class="cp">IMG_4821</div></div></div><div class="tx"><span class="silk">#3 · Pick keeper</span><h4>Keeper tab</h4><p>The teal corner tab unfolds on the suggested keeper. Image brightness never changes. It’s a suggestion — you can move it.</p></div></div>
+    <div class="dv"><div class="art"><div class="mini" style="margin-top:6px"><div class="shield a-pulse" style="left:8px;top:8px;transform-origin:20% 50%"><svg viewBox="0 0 22 24"><path d="M11 1L2 4.5v7C2 17 6 21 11 23c5-2 9-6 9-11.500v-7z" fill="#FFE1E8" stroke="#EC4468" stroke-width="1.6"/><path d="M11 17s-4.500-3-4.500-6a2.500 2.500 0 0 1 4.500-1.500A2.500 2.500 0 0 1 15.500 11c0 3-4.500 6-4.500 6z" fill="#EC4468"/></svg>Protected</div><div class="ph-box"><b class="ph" data-s="cake"></b></div><div class="cp">♥ Favorite</div></div></div><div class="tx"><span class="silk">#7 · Favorite</span><h4>Protected heart shield</h4><p>A fixed shield and the word “Protected”. No tab slot, no drag target — nothing tempting about it.</p></div></div>
+    <div class="dv"><div class="art"><svg viewBox="0 -10 140 160" width="180"><defs><linearGradient id="dk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+      <g class="mono" font-size="8" font-weight="700" fill="#2A251E"><text x="6" y="34">GENTLE</text><text x="70" y="12" text-anchor="middle">BALANCED</text><text x="134" y="34" text-anchor="end">SMALLER</text></g>
+      <g class="a-tick"><rect x="12" y="40" width="3" height="10" rx="1.5" fill="#14B8A6"/></g><g class="a-tick" style="animation-delay:-3s"><rect x="68.500" y="16" width="3" height="10" rx="1.5" fill="#14B8A6"/></g><g class="a-tick" style="animation-delay:-1.5s"><rect x="125" y="40" width="3" height="10" rx="1.5" fill="#14B8A6"/></g>
+      <g class="a-det"><circle cx="70" cy="80" r="40" fill="#2a251e"/><circle cx="70" cy="80" r="32" fill="url(#dk)"/><path d="M70 80V54" stroke="#fff" stroke-width="5" stroke-linecap="round"/></g></svg></div><div class="tx"><span class="silk">#10 · Preset change</span><h4>Preset detent tick</h4><p>One tick per detent. The plain-language settings update first; preview work follows. Optional wooden click, off by default.</p></div></div>
+    <div class="dv"><div class="art"><svg viewBox="0 0 220 130" width="240"><g><circle cx="62" cy="66" r="42" fill="#2a251e"/><circle cx="62" cy="66" r="35" fill="#9a8f7c"/><g fill="#F8F4EB"><circle cx="62" cy="42" r="9"/><circle cx="62" cy="90" r="9"/><circle cx="38" cy="66" r="9"/><circle cx="86" cy="66" r="9"/></g><circle cx="62" cy="66" r="9" fill="#F8F4EB"/><text x="62" y="124" text-anchor="middle" font-family="SF Mono,Menlo,monospace" font-size="9" font-weight="700" fill="#6E6355">ORIGINAL · 1.9 GB</text></g>
+      <g class="a-slide"><circle cx="158" cy="66" r="42" fill="#2a251e"/><circle cx="158" cy="66" r="35" fill="url(#dk)"/><g fill="#F8F4EB"><circle cx="158" cy="42" r="9"/><circle cx="158" cy="90" r="9"/><circle cx="134" cy="66" r="9"/><circle cx="182" cy="66" r="9"/></g><circle cx="158" cy="66" r="9" fill="#F8F4EB"/><text x="158" y="124" text-anchor="middle" font-family="SF Mono,Menlo,monospace" font-size="9" font-weight="700" fill="#0E8F82">COPY · ≈1.1 GB</text></g></svg></div><div class="tx"><span class="silk">#13 · Encode complete</span><h4>Replacement reel appears beside</h4><p>The new reel slides in next to the original — never over it. The original stays visibly where it is.</p></div></div>
+    <div class="dv"><div class="art"><svg viewBox="0 0 120 120" width="150"><circle cx="60" cy="60" r="46" fill="#fff" stroke="#E3D8C6" stroke-width="8"/><circle class="a-ring" cx="60" cy="60" r="46" fill="none" stroke="#14B8A6" stroke-width="8" stroke-linecap="round" transform="rotate(-90 60 60)"/><path class="a-draw" d="M38 62l16 16 30-34" fill="none" stroke="#0E8F82" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="silk" style="position:absolute;bottom:10px;font-size:9px;color:var(--ink2)">plays fully · same length</div></div><div class="tx"><span class="silk">#14 · Verification</span><h4>Checkmark draws after checks</h4><p>The tick only draws once every check has succeeded. Until then: plain progress text. No fake success.</p></div></div>
+    <div class="dv"><div class="art"><div class="a-bob" style="position:relative"><div class="pcard" style="width:150px;transform:rotate(-3deg)"><div class="ph-box" style="height:84px"><b class="ph" data-s="night"></b></div><div style="padding:7px 4px;font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--teal-d)">This one travels light</div></div>
+      <svg style="position:absolute;left:-18px;top:-16px" width="32" height="32" viewBox="0 0 32 32"><path d="M4 4l10 10M12 4H4v8" stroke="#14B8A6" stroke-width="4" stroke-linecap="round" fill="none"/></svg><svg style="position:absolute;right:-14px;bottom:8px" width="32" height="32" viewBox="0 0 32 32"><path d="M28 28L18 18M20 28h8v-8" stroke="#3B82F6" stroke-width="4" stroke-linecap="round" fill="none"/></svg></div></div><div class="tx"><span class="silk">#15 · Already efficient</span><h4>“This one travels light”</h4><p>No tab, no button. Factual reason below: “1080p HEVC · already efficient.” Listed, never hidden.</p></div></div>
+    <div class="dv"><div class="art"><svg viewBox="0 0 220 140" width="250"><rect x="20" y="70" width="180" height="52" rx="14" fill="#D8CCB7"/><rect x="20" y="70" width="180" height="52" rx="14" fill="none" stroke="#fff" stroke-opacity=".7"/><rect x="30" y="76" width="160" height="36" rx="9" fill="#C8BBA3"/><path d="M30 76h160v10q-80 -8-160 0z" fill="#B3A68E"/>
+      <g class="a-bob"><rect x="76" y="14" width="68" height="46" rx="5" fill="#fff" stroke="#E3D8C6"/><path d="M84 52l16-20 12 12 8-8 16 16z" fill="#14B8A6" opacity=".35"/><circle cx="96" cy="28" r="5" fill="#FFB020" opacity=".7"/></g>
+      <path d="M40 96h140" stroke="#fff" stroke-opacity=".5" stroke-width="2" stroke-dasharray="6 6"/>
+      <text x="110" y="136" text-anchor="middle" font-family="SF Mono,Menlo,monospace" font-size="9.5" font-weight="700" letter-spacing="1" fill="#6E6355">NOTHING NEEDS YOUR ATTENTION</text></svg></div><div class="tx"><span class="silk">#16 · Nothing found</span><h4>Empty tidy tray</h4><p>A clean empty tray and a quiet line: “Nothing needs your attention.” No confetti — a tidy library is not an achievement to be gamified.</p></div></div>
+  </div>
+</section>
+
+<footer><span>PixelPare v0.3 playful mocks · static HTML, inline SVG, system fonts · sources: docs/playful-ux-sol.md, docs/mock-review-sol.md</span><span><a href="#top">↑ top</a> · photo scenes are illustrations, not real photos</span></footer>
+</div>
+
+<script>
+// fill photo placeholders: <b class="ph" data-s="scene" data-v="viewBox" data-f="css filter">
+document.querySelectorAll('b.ph').forEach(function(el){
+  var v=el.dataset.v||'0 0 160 120', f=el.dataset.f?'filter:'+el.dataset.f:'';
+  var s='<svg class="ph" viewBox="'+v+'" preserveAspectRatio="xMidYMid slice" style="'+f+'"><use href="#s-'+el.dataset.s+'"/></svg>';
+  el.outerHTML=s;
+});
+// calm variant: clone light table
+var src=document.getElementById('mac-light'),slot=document.getElementById('calm-slot');
+if(src&&slot){var c=src.cloneNode(true);c.id='mac-calm';c.classList.add('calm');c.classList.remove('bench');
+  c.style.background='#EDEDEF';
+  c.querySelector('.ttl').textContent='Lookalike tray';
+  c.querySelectorAll('.toggle').forEach(function(t){t.classList.add('on')});
+  slot.appendChild(c);}
+// ?only=<section id> shows a single section for detail screenshots
+var q=new URLSearchParams(location.search),o=q.get('only');
+if(o||q.has('still'))document.body.classList.add('still');
+if(o){document.querySelectorAll('.sec,.band,.hero,footer').forEach(function(e){if(e.id!==o)e.style.display='none'});
+  var t=document.getElementById(o);if(t)t.style.paddingTop='20px';
+  document.querySelector('.page').style.paddingTop='20px';}
+</script>
+</body>
+</html>

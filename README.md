@@ -13,6 +13,9 @@ large videos to HEVC with three user-chosen levels. On-device, review-first, nev
 | [docs/mock-review-sol.md](docs/mock-review-sol.md) | Sol's critique of mocks v0.1 + architecture — most items applied in v0.2 |
 | [mocks/index.html](mocks/index.html) | Clickable-looking HTML mocks: Mac home, similar photos, videos, compare, progress/done, iPhone (open in a browser) |
 | [mocks/preview.png](mocks/preview.png) | Full-page render of the mocks |
+| [mocks/playful.html](mocks/playful.html) | v0.3 playful direction "Pocket Workshop" (workbench, light table, video press, receipt, iPhone, Calm mode) + alternates Pip and The Memory Edit |
+| [mocks/playful-preview.png](mocks/playful-preview.png) | Full-page render of the playful mocks |
+| [docs/playful-ux-sol.md](docs/playful-ux-sol.md) | Six creative directions, rankings, delight moments, Calm mode (Sol 6.1) |
 | [design/icon/](design/icon/) | App icon: `pixelpare-icon.svg` (master, edit this), `./make-icons.sh` → `build/` iOS + macOS `AppIcon` sets and `PixelPare.icns`; `icon-preview.png` |
 
 Next step: **M0 spike** — CLI over a folder: feature-print grouping + HEVC transcode at 3 presets, measured on ~50 real videos.
