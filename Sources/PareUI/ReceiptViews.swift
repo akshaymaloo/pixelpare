@@ -97,7 +97,9 @@ struct PlanReceiptView: View {
                         ReceiptLine(label: "Unfinished from last time", value: "\(recovered.count)",
                                     detail: "You chose to resume these. They are finished and verified the same way; originals stay until you approve.")
                     }
-                    ReceiptLine(label: "Favorites in this plan", value: "0", detail: "Favorites are never removed.")
+                    let favorites = model.protectedFavoriteCount
+                    ReceiptLine(label: "Favorites are never included", value: favorites == 0 ? "none skipped" : "\(favorites) protected",
+                                detail: favorites == 0 ? "No favorites were in the approved groups." : "Favorites in approved groups were skipped.")
                     Rule()
                     ReceiptLine(label: "Estimated space", value: "≈ \(Format.range(model.planSavings))", strong: true)
                     Text("An estimate: each item counts once and new copies are subtracted. Video savings only arrive after you remove the originals.")

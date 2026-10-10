@@ -33,6 +33,7 @@ struct ReviewGridView: View {
                             Silk("\(selected.count) of \(ids.count) marked")
                             Spacer()
                             Button("Mark all") { selectAll() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                                .disabled(ids.isEmpty || ids.allSatisfy(selected.contains))
                             Button("Clear") { clear() }.buttonStyle(.chunkyPlain).controlSize(.small).disabled(selected.isEmpty)
                         }
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: compact ? 100 : 150), spacing: 12)], spacing: 12) {

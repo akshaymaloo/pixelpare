@@ -136,6 +136,7 @@ struct Silk: View {
             .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
             .tracking(1.4)
             .foregroundStyle(color)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

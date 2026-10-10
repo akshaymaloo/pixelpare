@@ -65,7 +65,7 @@ struct WorkbenchView: View {
                 let r = model.opportunity
                 if r.upperBound > 0 {
                     Text("About \(Format.range(r)) worth a look").font(headlineFont).foregroundStyle(Workshop.ink)
-                    Text("An estimate. Nothing is marked yet, and nothing is removed until you approve it.")
+                    Text("Photos plus videos pressed at \(model.preset.title). An estimate: nothing is marked yet, and nothing is removed until you approve it.")
                         .font(.callout).foregroundStyle(Workshop.ink2)
                 } else {
                     Text("Your library looks tidy").font(headlineFont).foregroundStyle(Workshop.ink)
@@ -303,12 +303,14 @@ private struct BundleStack: View {
 
 private struct GaugeCard: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let r = model.opportunity
         let maxValue = Self.niceMax(r.upperBound)
         TrayShell(label: "Gauge · Honest estimate") {
-            HStack(spacing: 16) {
+            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 16))
+            layout {
                 RangeGauge(low: r.lowerBound, high: r.upperBound, maxValue: maxValue)
                     .frame(width: 190, height: 120)
                 VStack(alignment: .leading, spacing: 6) {

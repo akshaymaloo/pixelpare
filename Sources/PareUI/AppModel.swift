@@ -518,16 +518,37 @@ public final class AppModel {
         return PresetPolicy.settings(for: item, preset: p) != nil
     }
 
-    /// Expected total saving for a preset across the selection, or all eligible videos when nothing is selected.
+    /// Net space saved (original size minus the new copy) for a preset, across the selection, or all eligible
+    /// videos when nothing is selected. Same methodology as `opportunity`: `PresetPolicy.estimate` per video,
+    /// with a measured preview size taking precedence once the user has one.
     public func videoSavings(preset p: VideoPreset) -> ClosedRange<Int64> {
         let ids = selectedVideos.isEmpty ? eligibleVideoIDs : eligibleVideoIDs.filter(selectedVideos.contains)
         var lo: Int64 = 0, hi: Int64 = 0
         for id in ids {
-            guard let item = items[id], let est = estimate(for: id, preset: p) else { continue }
-            let size = item.byteSize ?? PresetPolicy.estimate(item, preset: .gentle).high * 3
-            lo += max(0, size - est.high); hi += max(0, size - est.low)
+            guard isApplicable(id, preset: p) else { continue }
+            if let size = items[id]?.byteSize, let measured = videoEstimates[EstimateKey(id: id, preset: p)] {
+                lo += max(0, size - measured.high); hi += max(0, size - measured.low)
+            } else {
+                let r = CleanupPlan(videoJobs: [id: p]).estimatedSavings(items: items)
+                lo += r.lowerBound; hi += r.upperBound
+            }
         }
         return lo...max(lo, hi)
+    }
+
+    /// The photo to flip when Space is pressed on the light table: the focused photo, or the first photo that
+    /// could be marked. Keepers and favorites never toggle.
+    public func spaceToggleTarget(group g: SimilarGroup, focused: MediaID?) -> MediaID? {
+        let keeper = keeper(for: g)
+        func markable(_ id: MediaID) -> Bool { g.members.contains(id) && id != keeper && !g.favorites.contains(id) }
+        if let focused { return markable(focused) ? focused : nil }
+        return g.members.first(where: markable)
+    }
+
+    /// Favorites that sit in groups whose removals are in the plan. They are never part of it.
+    public var protectedFavoriteCount: Int {
+        groups.filter { if case .approved = $0.approval { true } else { false } }
+            .reduce(0) { $0 + $1.favorites.count }
     }
 
     public var applicableSelectedVideos: [MediaID] {

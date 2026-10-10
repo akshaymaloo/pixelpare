@@ -27,6 +27,7 @@ struct VideoPressView: View {
                     .padding(compact ? 12 : 20)
                     .frame(maxWidth: 1000).frame(maxWidth: .infinity)
                 }
+                .contentMargins(.bottom, 16, for: .scrollContent)
             }
         }
         .background(BenchBackground())
@@ -55,12 +56,19 @@ struct VideoPressView: View {
                 Text(model.preset.title).font(.system(.title2, design: .rounded, weight: .heavy)).foregroundStyle(Workshop.ink)
                 Text(model.preset.summary).font(.callout).foregroundStyle(Workshop.ink2)
                 let r = model.videoSavings(preset: model.preset)
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("≈ \(Format.range(r))").font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(Workshop.ink)
-                    Chip(text: "Estimate", color: Workshop.amberDark)
+                let picked = model.applicableSelectedVideos.count
+                if picked == 0 {
+                    Text("Pick videos below").font(.system(.title3, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
+                    Text("All \(model.eligibleVideoIDs.count) eligible would save about \(Format.range(r)) (estimate).")
+                        .font(.footnote).foregroundStyle(Workshop.ink2)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Saves about \(Format.range(r))").font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(Workshop.ink)
+                        Chip(text: "Estimate", color: Workshop.amberDark)
+                    }
+                    Text("Space saved once you remove the originals, for the \(picked) \(picked == 1 ? "video" : "videos") you picked.")
+                        .font(.footnote).foregroundStyle(Workshop.ink2)
                 }
-                Text(model.selectedVideos.isEmpty ? "If you pressed all \(model.eligibleVideoIDs.count) eligible videos." : "For the \(model.selectedVideos.count) videos you picked.")
-                    .font(.footnote).foregroundStyle(Workshop.ink2)
                 Divider()
                 Label {
                     Text("**The press makes a second copy.** Your original stays in your library until the new one is verified and you approve removing it. Keeping both is fine. It just doesn't save space.")
@@ -314,7 +322,8 @@ private struct PressBar: View {
         let count = model.applicableSelectedVideos.count
         let plan = model.plan
         ViewThatFits(in: .horizontal) { bar(count, plan, long: true); bar(count, plan, long: false) }
-            .padding(.horizontal, 12).padding(.bottom, 6)
+            .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 6)
+            .background(.regularMaterial)
     }
 
     private func bar(_ count: Int, _ plan: CleanupPlan, long: Bool) -> some View {
@@ -330,10 +339,17 @@ private struct PressBar: View {
                     .font(.footnote).foregroundStyle(Workshop.ink2).frame(maxWidth: 280, alignment: .trailing)
                     .multilineTextAlignment(.trailing)
             }
-            Button(count == 0 ? "Review receipt" : "Press \(count == 1 ? "a smaller copy" : "\(count) smaller copies")") {
-                model.showPlan = true
+            VStack(alignment: .trailing, spacing: 4) {
+                Button(count == 0 ? "Receipt" : "Press \(count == 1 ? "a smaller copy" : "\(count) smaller copies")") {
+                    model.showPlan = true
+                }
+                .buttonStyle(.chunky).disabled(!model.canExecute)
+                .lineLimit(1).fixedSize()
+                .accessibilityIdentifier("press-receipt")
+                if !model.canExecute {
+                    Text("Pick at least one video").font(.caption2).foregroundStyle(Workshop.ink2)
+                }
             }
-            .buttonStyle(.chunky).disabled(!model.canExecute)
         }
         .padding(.horizontal, 20).padding(.vertical, 10)
         .workshopModule(radius: 20, screws: false)

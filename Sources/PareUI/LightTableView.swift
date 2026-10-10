@@ -6,6 +6,7 @@ struct LightTableView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.calm) private var calm
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var currentID: UUID?
     @State private var focusedMember: MediaID?
     @State private var peek: MediaID?
@@ -21,7 +22,7 @@ struct LightTableView: View {
             } else {
                 let g = groups.first { $0.id == currentID } ?? groups[0]
                 let layout = compact ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 14))
-                layout {
+                let content = layout {
                     TrayStrip(groups: groups, current: g.id, axis: compact ? .horizontal : .vertical) { select($0) }
                     VStack(spacing: 12) {
                         LightSurface(group: g, index: (groups.firstIndex { $0.id == g.id } ?? 0) + 1, count: groups.count,
@@ -30,6 +31,9 @@ struct LightTableView: View {
                     }
                 }
                 .padding(compact ? 10 : 16)
+                Group {
+                    if typeSize.isAccessibilitySize { ScrollView { content } } else { content }
+                }
                 .onAppear { if currentID == nil { currentID = groups[0].id } }
             }
         }
@@ -145,6 +149,7 @@ private struct TrayStrip: View {
 private struct LightSurface: View {
     @Environment(AppModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
     let group: SimilarGroup
     let index: Int
     let count: Int
@@ -156,15 +161,20 @@ private struct LightSurface: View {
 
     var body: some View {
         let keep = model.keepSet(for: group)
-        let columns = [GridItem(.adaptive(minimum: compact ? 150 : 250), spacing: 14, alignment: .top)]
+        let columns = typeSize.isAccessibilitySize
+            ? [GridItem(.flexible(), spacing: 14, alignment: .top)]
+            : [GridItem(.adaptive(minimum: compact ? 150 : 250), spacing: 14, alignment: .top)]
+        let headerLayout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            headerLayout {
                 VStack(alignment: .leading, spacing: 2) {
                     Silk("Backlit · opaque white · true colour", color: Workshop.tealDark)
                     Text(model.groupTitle(group))
                         .font(.system(compact ? .headline : .title3, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Silk("Group \(index) of \(count)", color: Workshop.ink2)
                 #if os(macOS)
                 HStack(spacing: 4) {
@@ -180,15 +190,15 @@ private struct LightSurface: View {
             } else if group.approval == .skipped {
                 Banner(symbol: "hand.raised", tint: Workshop.ink2, text: "Kept as they are. Nothing in this group will be removed.")
             }
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 14) {
-                    ForEach(group.members, id: \.self) { id in
-                        LightCard(group: group, id: id, keeping: keep.contains(id), isFocused: focused == id, peek: $peek)
-                            .onTapGesture { focused = id }
-                    }
+            let grid = LazyVGrid(columns: columns, spacing: 14) {
+                ForEach(group.members, id: \.self) { id in
+                    LightCard(group: group, id: id, keeping: keep.contains(id), isFocused: focused == id, peek: $peek)
+                        .onTapGesture { focused = id }
                 }
-                .padding(.vertical, 6)
             }
+            .padding(.vertical, 6)
+            // At accessibility sizes the whole page scrolls instead (see LightTableView), so the grid needs its natural height.
+            if typeSize.isAccessibilitySize { grid } else { ScrollView { grid } }
             Text(group.favorites.isEmpty ? "Marking is a selection, not a deletion. Undo mark puts a photo back."
                                          : "Favorites carry a heart shield and can never be marked.")
                 .font(.footnote).foregroundStyle(Workshop.ink2)
@@ -213,9 +223,7 @@ private struct LightSurface: View {
         .onKeyPress(.upArrow) { step(-1); return .handled }
         .onKeyPress(.downArrow) { step(1); return .handled }
         .onKeyPress(.space) {
-            if let f = focused ?? group.members.first(where: { !group.favorites.contains($0) && !keep.contains($0) }) {
-                toggle(f)
-            }
+            if let f = model.spaceToggleTarget(group: group, focused: focused) { toggle(f) }
             return .handled
         }
     }
@@ -227,7 +235,7 @@ private struct LightSurface: View {
     }
 
     private func toggle(_ id: MediaID) {
-        guard !group.favorites.contains(id) else { return }
+        guard !group.favorites.contains(id), id != model.keeper(for: group) else { return }
         model.toggleKeep(group: group.id, member: id)
     }
 }
@@ -412,6 +420,7 @@ private struct LightCard: View {
 private struct GroupActionBar: View {
     @Environment(AppModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
     let group: SimilarGroup
     let advance: () -> Void
 
@@ -426,7 +435,9 @@ private struct GroupActionBar: View {
             Text(marked.isEmpty ? "Nothing marked" : "\(marked.count) marked · \(Format.bytes(model.savings(of: group)))")
                 .font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
         }
-        let buttons = HStack(spacing: 8) {
+        let stacked = typeSize.isAccessibilitySize
+        let buttonLayout = stacked ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        let buttons = buttonLayout {
             Button { advance() } label: { Text("Skip").lineLimit(1) }
                 .buttonStyle(.chunkyPlain).keyboardShortcut("s", modifiers: [])
                 .help("Decide later (S)")
@@ -434,7 +445,7 @@ private struct GroupActionBar: View {
                 .buttonStyle(.chunkyPlain).keyboardShortcut("k", modifiers: [])
                 .help("Keep every photo in this group (K)")
             if approved {
-                Button { model.unapproveGroup(group.id) } label: { Text("Undo approval").lineLimit(1) }
+                Button { model.unapproveGroup(group.id) } label: { Text("Undo approval").lineLimit(stacked ? 2 : 1) }
                     .buttonStyle(.chunkyPlain)
             } else {
                 Button { model.approveGroup(group.id); advance() } label: { Text(compact ? "Approve" : "Approve group").lineLimit(1) }
@@ -443,9 +454,10 @@ private struct GroupActionBar: View {
                     .help("Approve removing the marked photos (Return)")
             }
         }
-        .fixedSize(horizontal: true, vertical: false)
+        .fixedSize(horizontal: !stacked, vertical: false)
+        .frame(maxWidth: stacked ? .infinity : nil, alignment: .leading)
         Group {
-            if compact {
+            if compact || stacked {
                 VStack(alignment: .leading, spacing: 10) { summary; buttons }.frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(spacing: 12) {

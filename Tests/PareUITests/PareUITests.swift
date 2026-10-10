@@ -342,3 +342,57 @@ final class ScriptedLibrary: MediaLibrary, @unchecked Sendable {
         #expect(cache.entry(for: item) == nil)
     }
 }
+
+@Suite @MainActor struct PressAndTableLogicTests {
+    func ready() async throws -> (AppModel, URL) {
+        let support = try makeFolder()
+        let model = AppModel(library: SampleLibrary(), supportDirectory: support)
+        await model.start()
+        return (model, support)
+    }
+
+    @Test func videoSavingsMatchesPlanEstimateForSamePreset() async throws {
+        let (m, support) = try await ready()
+        defer { try? FileManager.default.removeItem(at: support) }
+        for preset in VideoPreset.allCases {
+            var jobs: [MediaID: VideoPreset] = [:]
+            for id in m.eligibleVideoIDs where m.isApplicable(id, preset: preset) { jobs[id] = preset }
+            #expect(m.videoSavings(preset: preset) == CleanupPlan(videoJobs: jobs).estimatedSavings(items: m.items))
+        }
+    }
+
+    @Test func videoSavingsForSelectionIsNotMoreThanAll() async throws {
+        let (m, support) = try await ready()
+        defer { try? FileManager.default.removeItem(at: support) }
+        let all = m.videoSavings(preset: .balanced)
+        let one = try #require(m.eligibleVideoIDs.first)
+        m.toggleVideo(one)
+        let picked = m.videoSavings(preset: .balanced)
+        #expect(picked.upperBound <= all.upperBound)
+    }
+
+    @Test func spaceTogglesMarkOnNonKeeperAndIgnoresKeeperAndFavorites() async throws {
+        let (m, support) = try await ready()
+        defer { try? FileManager.default.removeItem(at: support) }
+        let g = try #require(m.groups.first { $0.members.count >= 2 })
+        let keeper = m.keeper(for: g)
+        #expect(m.spaceToggleTarget(group: g, focused: keeper) == nil)
+        let target = try #require(m.spaceToggleTarget(group: g, focused: nil))
+        #expect(target != keeper && !g.favorites.contains(target))
+        #expect(m.spaceToggleTarget(group: g, focused: target) == target)
+        let before = m.keepSet(for: g).contains(target)
+        m.toggleKeep(group: g.id, member: target)
+        #expect(m.keepSet(for: m.group(g.id)!).contains(target) != before)
+        for fav in g.favorites { #expect(m.spaceToggleTarget(group: g, focused: fav) == nil) }
+    }
+
+    @Test func protectedFavoriteCountOnlyCountsApprovedGroups() async throws {
+        let (m, support) = try await ready()
+        defer { try? FileManager.default.removeItem(at: support) }
+        #expect(m.protectedFavoriteCount == 0)
+        let g = try #require(m.groups.first { !$0.favorites.isEmpty })
+        m.approveGroup(g.id)
+        #expect(m.protectedFavoriteCount >= g.favorites.count)
+        #expect(m.plan.removals.isDisjoint(with: g.favorites))
+    }
+}
