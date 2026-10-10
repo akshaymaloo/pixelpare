@@ -447,9 +447,28 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
         }
     }
 
-    public func findStillCopy(of original: MediaItem, addedAfter: Date,
-                              excluding: Set<MediaID>) async throws -> MediaID? {
-        guard let created = original.creationDate else { return nil }
+    public func stillResourceDigest(_ id: MediaID) async throws -> String? {
+        guard let asset = try? asset(id),
+              let resource = PHAssetResource.assetResources(for: asset).first(where: { $0.type == .photo })
+        else { return nil }
+        let opts = PHAssetResourceRequestOptions()
+        opts.isNetworkAccessAllowed = true
+        let hasher = Box(SHA256())
+        let ok: Bool = await withCheckedContinuation { cont in
+            PHAssetResourceManager.default().requestData(
+                for: resource, options: opts,
+                dataReceivedHandler: { chunk in
+                    var h = hasher.get(); h.update(data: chunk); hasher.set(h)
+                },
+                completionHandler: { error in cont.resume(returning: error == nil) })
+        }
+        guard ok else { return nil }
+        return hasher.get().finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    public func stillCopyCandidates(of original: MediaItem, addedAfter: Date,
+                                    excluding: Set<MediaID>) async throws -> [MediaID] {
+        guard let created = original.creationDate else { return [] }
         let fingerprint = StillFingerprint(of: original)
         let opts = PHFetchOptions()
         opts.includeHiddenAssets = true
@@ -458,12 +477,12 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
             format: "mediaType == %d AND creationDate >= %@ AND creationDate <= %@",
             PHAssetMediaType.image.rawValue,
             created.addingTimeInterval(-1) as NSDate, created.addingTimeInterval(1) as NSDate)
-        var found: MediaID?
-        PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, stop in
+        var found: [MediaID] = []
+        PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, _ in
             let id = MediaID(a.localIdentifier)
             guard !excluding.contains(id), fingerprint.matches(Self.mediaItem(a)) else { return }
             if let m = a.modificationDate, m < addedAfter.addingTimeInterval(-3600) { return }
-            found = id; stop.pointee = true
+            found.append(id)
         }
         return found
     }

@@ -1,4 +1,5 @@
 import Foundation
+import PareEngine
 #if canImport(UIKit)
 import BackgroundTasks
 import UIKit
@@ -52,6 +53,66 @@ final class BackgroundActivity {
     #endif
 }
 
+/// Something that can be told the system task is over. `BGContinuedProcessingTask` conforms on iOS.
+@MainActor protocol ContinuedTaskHandle: AnyObject {
+    func complete(success: Bool)
+}
+
+/// Guarantees `complete` is called exactly once per task, whichever of "run finished" and "system expired it" comes
+/// first. The terminal transition is claimed synchronously, before any await, so the two paths can't both complete it.
+@MainActor
+final class ContinuedCompletion {
+    private(set) var handle: (any ContinuedTaskHandle)?
+    private(set) var finished = false
+
+    /// A task that arrives after the run already finished is completed straight away.
+    func attach(_ h: any ContinuedTaskHandle) {
+        guard !finished else { h.complete(success: true); return }
+        handle = h
+    }
+
+    /// Returns true when this call claimed the end of the run and so owns the cleanup of a task that never started.
+    @discardableResult
+    func finish(success: Bool) -> Bool {
+        guard !finished else { return false }
+        finished = true
+        let h = handle; handle = nil
+        h?.complete(success: success)
+        return true
+    }
+
+    /// The system is expiring the task: claim it, let the work stop, then report failure once.
+    func expire(stopWork: @MainActor () async -> Void) async {
+        guard !finished, let h = handle else { return }
+        finished = true; handle = nil
+        await stopWork()
+        h.complete(success: false)
+    }
+}
+
+/// Maps pipeline progress to a monotonic 0...100 per video so the system progress bar moves during a long encode.
+enum ContinuedProgress {
+    static let unitsPerJob = 100
+
+    static func units(step: PipelineStep?, fraction: Double?) -> Int {
+        let f = min(max(fraction ?? 0, 0), 1)
+        switch step {
+        case nil, .preflight: return 0
+        case .download: return Int(f * 30)
+        case .encode: return 30 + Int(f * 55)
+        case .verify: return 87
+        case .importCopy: return 92
+        case .verifyImported: return 96
+        case .remove: return 98
+        }
+    }
+
+    /// Never goes backwards (retries restart steps); finished jobs count as a full 100.
+    static func advance(previous: Int, step: PipelineStep?, fraction: Double?, finished: Bool = false) -> Int {
+        max(previous, finished ? unitsPerJob : min(units(step: step, fraction: fraction), unitsPerJob - 1))
+    }
+}
+
 /// A user-started run registered as a `BGContinuedProcessingTask`. If the system refuses the request (simulator,
 /// too much load) this is inert and the run relies on `BackgroundActivity` alone. macOS: always inert.
 @MainActor
@@ -62,7 +123,7 @@ final class ContinuedRun {
     private let identifier = ContinuedRun.identifierPrefix + UUID().uuidString
     private var task: BGContinuedProcessingTask?
     private var submitted = false
-    private var finished = false
+    private let completion = ContinuedCompletion()
     private var completed = 0, total = 0
     private var subtitle = ""
     private let onExpire: @MainActor () async -> Void
@@ -81,8 +142,9 @@ final class ContinuedRun {
     }
 
     private func started(_ t: BGContinuedProcessingTask) {
-        guard !finished else { t.setTaskCompleted(success: true); return }
+        guard !completion.finished else { t.setTaskCompleted(success: true); return }
         task = t
+        completion.attach(t)
         t.expirationHandler = { [weak self] in
             Task { @MainActor in await self?.expired() }
         }
@@ -90,10 +152,8 @@ final class ContinuedRun {
     }
 
     private func expired() async {
-        guard let t = task, !finished else { return }
-        await onExpire()
-        finished = true; task = nil
-        t.setTaskCompleted(success: false)
+        await completion.expire { await onExpire() }
+        task = nil
     }
 
     private func apply() {
@@ -109,10 +169,9 @@ final class ContinuedRun {
     }
 
     func finish(success: Bool) {
-        guard !finished else { return }
-        finished = true
-        if let t = task { t.setTaskCompleted(success: success) }
-        else if submitted { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier) }
+        let hadTask = completion.handle != nil
+        guard completion.finish(success: success) else { return }
+        if !hadTask && submitted { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier) }
         task = nil
     }
     #else
@@ -121,3 +180,9 @@ final class ContinuedRun {
     func finish(success: Bool) {}
     #endif
 }
+
+#if os(iOS)
+extension BGContinuedProcessingTask: ContinuedTaskHandle {
+    func complete(success: Bool) { setTaskCompleted(success: success) }
+}
+#endif

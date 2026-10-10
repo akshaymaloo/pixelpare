@@ -136,9 +136,17 @@ must not trigger it:
 ## 10. Live Photo → still (StillConverter)
 
 Separate journal (`stills*.json`) so video recovery never sees it. States: `importing` → `imported` →
-`awaitingRemovalApproval` → `removing` → `removed`. Rules: the original is deleted only after the still exists, is a
-non-live photo with the same pixel size and favorite flag, and the original's `modificationDate` is unchanged. On
-resume, a recorded copy is reused; in `importing` a tight fingerprint (date within 50 ms, size, dimensions) adopts an
-orphaned still instead of creating a duplicate. A declined delete keeps both and the next run only deletes. A vanished
-copy is recreated. Whether the original is gone is decided by the library, not by the error. Tests:
-`StillConverterTests`.
+`awaitingRemovalApproval` → `removing` → `removed`. Rules:
+
+- Originals without a creation or modification date are skipped (a copy couldn't be recognised after a crash).
+- Before anything is imported the SHA-256 of the original's photo resource is journaled (`sourceDigest`); if it can't be
+  read, nothing happens. `importing` plus an `importToken` is journaled *before* the library import is called.
+- Orphan reconciliation runs only when that token exists (an import may have started). A candidate (date within 50 ms,
+  size, dimensions) is adopted only if its photo-resource digest equals `sourceDigest`; more than one such candidate
+  fails safe (no copy, no delete). A fresh conversion never adopts an existing photo.
+- The original is deleted only after the still exists, is a non-live, unedited photo with known non-zero size, the same
+  pixel size and favorite flag, and the original's `modificationDate` is unchanged. The copy's `modificationDate` and
+  digest are journaled at verification; on retry (e.g. after a declined delete) and again right before the delete,
+  an edited, modified or content-changed copy blocks the delete.
+- A declined delete keeps both and the next run only deletes. A vanished copy is recreated. Whether the original is
+  gone is decided by the library, not by the error. Tests: `StillConverterTests`.

@@ -21,7 +21,7 @@ public struct StillResult: Sendable {
 /// was created but never recorded is found again by fingerprint (never duplicated), and the original is deleted only
 /// after the copy is re-confirmed to exist right now.
 ///
-/// Journal states per original: `importing` (a copy may exist), `awaitingRemovalApproval` (copy verified, original
+/// Journal states per original: `importing` (an import was started, so a copy may exist), `awaitingRemovalApproval` (copy verified, original
 /// still here), `removing` (delete issued), `removed` (final). Uses its own journal file, separate from the video press.
 public actor StillConverter {
     private let library: any MediaLibrary
@@ -69,26 +69,55 @@ public actor StillConverter {
             result.skipped[id] = original.isEdited ? "Edited Live Photos are left alone." : "It isn't a Live Photo."
             return
         }
+        // Without both dates a copy that was made but never journaled can't be told apart from other photos.
+        guard original.creationDate != nil, original.modificationDate != nil else {
+            result.skipped[id] = "Its date information is missing, so it was left alone."
+            return
+        }
 
         var entry = try await commit(id) { e in
-            if e.state == .planned || e.state.isTerminal { e.state = .importing; e.importStartedAt = self.now() }
+            if e.state == .planned || e.state.isTerminal { e.state = .preflight }
             e.sourceBytes = e.sourceBytes ?? original.pairedVideoBytes
             e.originalModificationDate = e.originalModificationDate ?? original.modificationDate
             e.lastError = nil
         }
 
-        // 1. The copy: recorded one, else one a crashed run created, else make it.
+        // 0. Fingerprint the original's photo data; it's the only thing that can prove a copy is really ours.
+        if entry.sourceDigest == nil {
+            guard let digest = try await library.stillResourceDigest(id) else {
+                result.failed[id] = "The photo data couldn't be read, so the original was kept."
+                return
+            }
+            entry = try await commit(id) { $0.sourceDigest = digest }
+        }
+        guard let sourceDigest = entry.sourceDigest else { return }
+
+        // 1. The copy: recorded one, else one a crashed import created, else make it.
         var copy: MediaID? = entry.newID
         if let c = copy, try await library.item(c) == nil {
             copy = nil
-            entry = try await commit(id) { $0.newID = nil; $0.state = .importing }
+            entry = try await commit(id) { $0.newID = nil; $0.state = .importing; $0.copyDigest = nil; $0.copyModificationDate = nil }
         }
-        if copy == nil, entry.state == .importing {
+        // Only an import that was journaled as started can have left an orphan behind.
+        if copy == nil, entry.importToken != nil {
             let others = await journal.importedIDs(excludingJob: id)
-            copy = try await library.findStillCopy(of: original, addedAfter: entry.importStartedAt ?? now(), excluding: others)
+            let candidates = try await library.stillCopyCandidates(
+                of: original, addedAfter: entry.importStartedAt ?? now(), excluding: others)
+            var matching: [MediaID] = []
+            for c in candidates where try await library.stillResourceDigest(c) == sourceDigest { matching.append(c) }
+            if matching.count > 1 {
+                result.failed[id] = "Several photos could be the copy, so nothing was changed."
+                return
+            }
+            copy = matching.first
         }
         if copy == nil {
             try Task.checkCancellation()
+            entry = try await commit(id) { e in
+                e.state = .importing
+                e.importToken = e.importToken ?? UUID().uuidString
+                e.importStartedAt = self.now()
+            }
             copy = try await library.convertLivePhotoToStill(id)
         }
         guard let newID = copy else { return }
@@ -102,7 +131,7 @@ public actor StillConverter {
         }
         let a = [original.pixelWidth, original.pixelHeight].sorted(), b = [still.pixelWidth, still.pixelHeight].sorted()
         guard still.kind != .livePhoto, still.kind != .video, abs(a[0] - b[0]) <= 2, abs(a[1] - b[1]) <= 2,
-              (still.byteSize ?? 1) > 0 else {
+              let stillBytes = still.byteSize, stillBytes > 0 else {
             try await commit(id) { $0.lastError = .init(kind: "permanent", message: "The new still didn't match.") }
             result.failed[id] = "The new still didn't match the original, so the original was kept."
             return
@@ -111,7 +140,16 @@ public actor StillConverter {
             result.failed[id] = "The new still didn't keep the favorite mark, so the original was kept."
             return
         }
-        entry = try await commit(id) { $0.state = .awaitingRemovalApproval; $0.encodedBytes = still.byteSize }
+        guard let copyDigest = try await library.stillResourceDigest(newID), !still.isEdited,
+              entry.copyDigest == nil || entry.copyDigest == copyDigest,
+              entry.copyModificationDate == nil || entry.copyModificationDate == still.modificationDate else {
+            result.failed[id] = "The still changed since it was verified, so the original was kept."
+            return
+        }
+        entry = try await commit(id) {
+            $0.state = .awaitingRemovalApproval; $0.encodedBytes = stillBytes
+            $0.copyDigest = copyDigest; $0.copyModificationDate = still.modificationDate
+        }
         let saved = entry.sourceBytes ?? 0
         let outcome = StillResult.Converted(original: id, copy: newID, savedBytes: saved)
 
@@ -123,6 +161,13 @@ public actor StillConverter {
         guard let was = entry.originalModificationDate, fresh.modificationDate == was, !fresh.isEdited else {
             result.skipped[id] = "It changed after the still was made, so the original was kept."
             result.keptBoth.append(outcome); return
+        }
+        // The copy must be unchanged right up to the delete.
+        guard let stillNow = try await library.item(newID), !stillNow.isEdited,
+              stillNow.modificationDate == entry.copyModificationDate,
+              try await library.stillResourceDigest(newID) == entry.copyDigest else {
+            result.failed[id] = "The still changed, so the original was kept."
+            return
         }
         try Task.checkCancellation()
         try await commit(id) { $0.state = .removing }

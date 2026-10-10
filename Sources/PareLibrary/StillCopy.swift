@@ -35,8 +35,10 @@ public extension MediaLibrary {
         throw LibraryError.importFailed("Making a still from a Live Photo isn't supported here")
     }
 
-    func findStillCopy(of original: MediaItem, addedAfter: Date, excluding: Set<MediaID>) async throws -> MediaID? {
+    func stillCopyCandidates(of original: MediaItem, addedAfter: Date, excluding: Set<MediaID>) async throws -> [MediaID] {
         let fingerprint = StillFingerprint(of: original)
-        return try await items().first { !excluding.contains($0.id) && fingerprint.matches($0) }?.id
+        return try await items().filter { !excluding.contains($0.id) && fingerprint.matches($0) }.map(\.id)
     }
+
+    func stillResourceDigest(_ id: MediaID) async throws -> String? { nil }
 }

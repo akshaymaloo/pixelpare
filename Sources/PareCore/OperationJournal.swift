@@ -46,6 +46,11 @@ public actor OperationJournal {
         public var duration: TimeInterval?
         public var encodedWidth: Int?
         public var encodedHeight: Int?
+        /// Live Photo → still: SHA-256 of the original's photo resource, taken before any import is attempted.
+        public var sourceDigest: String?
+        /// Live Photo → still: modification date and photo-resource digest of the copy at the moment it was verified.
+        public var copyModificationDate: Date?
+        public var copyDigest: String?
 
         public var error: String? { lastError?.message }
 
@@ -67,7 +72,7 @@ public actor OperationJournal {
         private enum CodingKeys: String, CodingKey {
             case original, state, preset, settings, newID, importToken, importStartedAt, attempts, lastError
             case nextRetryAt, sourceBytes, encodedBytes, originalModificationDate, updatedAt, encodeRung
-            case duration, encodedWidth, encodedHeight
+            case duration, encodedWidth, encodedHeight, sourceDigest, copyModificationDate, copyDigest
         }
 
         public init(from decoder: Decoder) throws {
@@ -90,6 +95,9 @@ public actor OperationJournal {
             duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
             encodedWidth = try c.decodeIfPresent(Int.self, forKey: .encodedWidth)
             encodedHeight = try c.decodeIfPresent(Int.self, forKey: .encodedHeight)
+            sourceDigest = try c.decodeIfPresent(String.self, forKey: .sourceDigest)
+            copyModificationDate = try c.decodeIfPresent(Date.self, forKey: .copyModificationDate)
+            copyDigest = try c.decodeIfPresent(String.self, forKey: .copyDigest)
         }
     }
 
