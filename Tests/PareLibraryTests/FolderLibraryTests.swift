@@ -28,7 +28,7 @@ private func writeImage(_ url: URL, type: UTType, exifDate: String? = nil) throw
 private func writeVideo(_ url: URL, seconds: Int = 1, fps: Int = 10) async throws {
     let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
     let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-        AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 128, AVVideoHeightKey: 96,
+        AVVideoCodecKey: AVVideoCodecType.jpeg, AVVideoWidthKey: 128, AVVideoHeightKey: 96,
     ])
     let adaptor = AVAssetWriterInputPixelBufferAdaptor(
         assetWriterInput: input,
@@ -96,7 +96,7 @@ private func makeRoot() throws -> URL {
         #expect(v.kind == .video)
         #expect(v.pixelWidth == 128 && v.pixelHeight == 96)
         #expect(abs((v.duration ?? 0) - 1) < 0.2)
-        #expect(v.videoCodec == "avc1")
+        #expect(v.videoCodec == "jpeg")
         #expect(abs((v.frameRate ?? 0) - 10) < 1)
     }
 
@@ -145,7 +145,10 @@ private func makeRoot() throws -> URL {
         #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent(".trash/clip.mov").path))
         let remaining = try await lib.items().map(\.id.raw)
         #expect(!remaining.contains("clip.mov") && remaining.contains("clip-pare.mov"))
-        await #expect(throws: LibraryError.self) { try await lib.delete([original.id]) }
+        // Idempotent: deleting an already-removed item is a no-op (docs/resilience.md §4).
+        try await lib.delete([original.id])
+        #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent(".trash/clip.mov").path))
+        #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent(".trash/clip 2.mov").path))
         #expect(await lib.authorization() == .full)
     }
 }

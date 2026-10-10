@@ -9,6 +9,7 @@ let package = Package(
         .library(name: "PareVision", targets: ["PareVision"]),
         .library(name: "PareLibrary", targets: ["PareLibrary"]),
         .library(name: "PareTranscode", targets: ["PareTranscode"]),
+        .library(name: "PareEngine", targets: ["PareEngine"]),
         .library(name: "PareUI", targets: ["PareUI"]),
     ],
     targets: [
@@ -16,10 +17,13 @@ let package = Package(
         .target(name: "PareVision", dependencies: ["PareCore"]),
         .target(name: "PareLibrary", dependencies: ["PareCore"]),
         .target(name: "PareTranscode", dependencies: ["PareCore"]),
-        .target(name: "PareUI", dependencies: ["PareLibrary", "PareVision", "PareTranscode"]),
+        .target(name: "PareEngine", dependencies: ["PareCore", "PareLibrary", "PareTranscode"]),
+        .target(name: "PareUI", dependencies: ["PareCore", "PareLibrary", "PareVision", "PareTranscode", "PareEngine"]),
         .testTarget(name: "PareCoreTests", dependencies: ["PareCore"]),
         .testTarget(name: "PareVisionTests", dependencies: ["PareVision", "PareCore"]),
         .testTarget(name: "PareLibraryTests", dependencies: ["PareLibrary", "PareCore"]),
+        .testTarget(name: "PareUITests", dependencies: ["PareUI", "PareLibrary", "PareCore"]),
+        .testTarget(name: "PareEngineTests", dependencies: ["PareEngine", "PareLibrary", "PareTranscode", "PareCore"]),
         .testTarget(name: "PareTranscodeTests", dependencies: ["PareTranscode", "PareCore"]),
     ],
     swiftLanguageModes: [.v6]

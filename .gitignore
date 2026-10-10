@@ -3,3 +3,5 @@
 DerivedData
 .swiftpm/
 .DS_Store
+PixelPare.xcodeproj/
+.scratch/

@@ -118,7 +118,45 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
             isFavorite: a.isFavorite, isEdited: edited, isLocal: isLocal,
             burstID: a.burstIdentifier, duration: isVideo ? a.duration : nil,
             videoCodec: nil, frameRate: nil, isHDR: false,
-            isSlowMo: isVideo && a.mediaSubtypes.contains(.videoHighFrameRate))
+            isSlowMo: isVideo && a.mediaSubtypes.contains(.videoHighFrameRate),
+            modificationDate: a.modificationDate)
+    }
+
+    public func item(_ id: MediaID) async throws -> MediaItem? {
+        // Always a fresh fetch: a cached PHAsset can outlive the asset it points at.
+        guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: nil).firstObject else {
+            evict([id.raw])
+            return nil
+        }
+        store(id.raw, a)
+        return Self.mediaItem(a)
+    }
+
+    public func resourceSize(_ id: MediaID) async -> Int64? {
+        guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: nil).firstObject,
+              let res = originalVideoResource(a) ?? PHAssetResource.assetResources(for: a).first,
+              let n = res.value(forKey: "fileSize") as? NSNumber else { return nil }
+        return n.int64Value
+    }
+
+    public func findImportedCopy(fingerprint: ImportFingerprint, addedAfter: Date,
+                                 excluding: Set<MediaID>) async throws -> MediaID? {
+        guard let created = fingerprint.creationDate else { return nil }
+        let opts = PHFetchOptions()
+        opts.predicate = NSPredicate(
+            format: "mediaType == %d AND creationDate >= %@ AND creationDate <= %@",
+            PHAssetMediaType.video.rawValue,
+            created.addingTimeInterval(-1) as NSDate, created.addingTimeInterval(1) as NSDate)
+        var found: MediaID?
+        PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, stop in
+            let id = MediaID(a.localIdentifier)
+            guard !excluding.contains(id), fingerprint.matches(Self.mediaItem(a)) else { return }
+            // PhotoKit has no public "date added"; only exclude copies that were clearly modified long before the
+            // import started.
+            if let m = a.modificationDate, m < addedAfter.addingTimeInterval(-3600) { return }
+            found = id; stop.pointee = true
+        }
+        return found
     }
 
     // MARK: Thumbnails
@@ -157,29 +195,98 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
 
     public func exportVideo(_ id: MediaID, to dir: URL, allowNetwork: Bool,
                             progress: @Sendable (Double) -> Void) async throws -> URL {
+        try Task.checkCancellation()
         let asset = try asset(id)
         guard let resource = originalVideoResource(asset) else {
             throw LibraryError.exportFailed("No original video resource")
         }
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fm = FileManager.default
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         let name = resource.originalFilename.isEmpty ? "video.mov" : resource.originalFilename
         let safe = id.raw.replacingOccurrences(of: "/", with: "_")
         let dest = dir.appendingPathComponent("\(safe)-\(name)")
-        if FileManager.default.fileExists(atPath: dest.path) { try FileManager.default.removeItem(at: dest) }
+        let partial = dest.appendingPathExtension("partial")
+        try? fm.removeItem(at: partial)
+        try? fm.removeItem(at: dest)
+        guard fm.createFile(atPath: partial.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let transfer = DataTransfer(handle: try FileHandle(forWritingTo: partial))
 
         let opts = PHAssetResourceRequestOptions()
         opts.isNetworkAccessAllowed = allowNetwork
-        try await withoutActuallyEscaping(progress) { escapableProgress in
-            let report = UncheckedSendable(escapableProgress)
-            opts.progressHandler = { report.value($0) }
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                PHAssetResourceManager.default().writeData(for: resource, toFile: dest, options: opts) { error in
-                    if let error { cont.resume(throwing: error) } else { cont.resume() }
+        do {
+            try await withoutActuallyEscaping(progress) { escapableProgress in
+                let report = UncheckedSendable(escapableProgress)
+                opts.progressHandler = { report.value($0) }
+                try await withTaskCancellationHandler {
+                    try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                        let manager = PHAssetResourceManager.default()
+                        let request = manager.requestData(
+                            for: resource, options: opts,
+                            dataReceivedHandler: { transfer.write($0) },
+                            completionHandler: { cont.resume(with: transfer.finish($0)) })
+                        transfer.attach(request, manager)
+                    }
+                } onCancel: {
+                    transfer.cancel()
                 }
             }
+            let size = (try? fm.attributesOfItem(atPath: partial.path)[.size] as? NSNumber)?.int64Value ?? 0
+            guard size > 0 else { throw LibraryError.exportFailed("The exported file is empty") }
+            try fm.moveItem(at: partial, to: dest)
+        } catch {
+            try? fm.removeItem(at: partial)
+            throw error
         }
         progress(1)
         return dest
+    }
+
+    /// Streams `requestData` chunks into a file; a failed write (e.g. disk full) cancels the request.
+    private final class DataTransfer: @unchecked Sendable {
+        private let lock = NSLock()
+        private var handle: FileHandle?
+        private var writeError: Error?
+        private var request: PHAssetResourceDataRequestID?
+        private var manager: PHAssetResourceManager?
+        private var cancelled = false
+
+        init(handle: FileHandle) { self.handle = handle }
+
+        func write(_ data: Data) {
+            lock.lock()
+            guard writeError == nil, let handle else { lock.unlock(); return }
+            var failed = false
+            do { try handle.write(contentsOf: data) } catch { writeError = error; failed = true }
+            lock.unlock()
+            if failed { cancel() }
+        }
+
+        func attach(_ request: PHAssetResourceDataRequestID, _ manager: PHAssetResourceManager) {
+            lock.lock()
+            self.request = request; self.manager = manager
+            let already = cancelled
+            lock.unlock()
+            if already { manager.cancelDataRequest(request) }
+        }
+
+        func cancel() {
+            lock.lock()
+            cancelled = true
+            let (r, m) = (request, manager)
+            lock.unlock()
+            if let r, let m { m.cancelDataRequest(r) }
+        }
+
+        func finish(_ error: Error?) -> Result<Void, Error> {
+            lock.lock(); defer { lock.unlock() }
+            try? handle?.close(); handle = nil
+            if let writeError { return .failure(writeError) }
+            if cancelled { return .failure(CancellationError()) }
+            if let error { return .failure(error) }
+            return .success(())
+        }
     }
 
     private struct UncheckedSendable<T>: @unchecked Sendable { let value: T; init(_ v: T) { value = v } }
@@ -215,33 +322,32 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
         }
         let created = Box<String?>(nil)
         let work = UncheckedSendable((source, regular))
-        do {
-            try await PHPhotoLibrary.shared().performChanges {
-                let (source, albums) = work.value
-                let req = PHAssetCreationRequest.forAsset()
-                let opts = PHAssetResourceCreationOptions()
-                opts.shouldMoveFile = false
-                req.addResource(with: .video, fileURL: file, options: opts)
-                req.creationDate = source.creationDate
-                req.location = source.location
-                req.isFavorite = source.isFavorite
-                req.isHidden = source.isHidden
-                guard let placeholder = req.placeholderForCreatedAsset else { return }
-                created.set(placeholder.localIdentifier)
-                for album in albums {
-                    PHAssetCollectionChangeRequest(for: album)?.addAssets([placeholder] as NSArray)
-                }
+        try await PHPhotoLibrary.shared().performChanges {
+            let (source, albums) = work.value
+            let req = PHAssetCreationRequest.forAsset()
+            let opts = PHAssetResourceCreationOptions()
+            opts.shouldMoveFile = false
+            req.addResource(with: .video, fileURL: file, options: opts)
+            req.creationDate = source.creationDate
+            req.location = source.location
+            req.isFavorite = source.isFavorite
+            req.isHidden = source.isHidden
+            guard let placeholder = req.placeholderForCreatedAsset else { return }
+            created.set(placeholder.localIdentifier)
+            for album in albums {
+                PHAssetCollectionChangeRequest(for: album)?.addAssets([placeholder] as NSArray)
             }
-        } catch {
-            throw LibraryError.importFailed(error.localizedDescription)
         }
         guard let newID = created.get() else { throw LibraryError.importFailed("No identifier returned") }
         return MediaID(newID)
     }
 
     public func delete(_ ids: [MediaID]) async throws {
-        let assets = try ids.map { try asset($0) }
-        guard !assets.isEmpty else { return }
+        // Already-missing ids are skipped. A declined system prompt surfaces as PHPhotosError.userCancelled.
+        var assets: [PHAsset] = []
+        PHAsset.fetchAssets(withLocalIdentifiers: ids.map(\.raw), options: nil)
+            .enumerateObjects { a, _, _ in assets.append(a) }
+        guard !assets.isEmpty else { evict(ids.map(\.raw)); return }
         let work = UncheckedSendable(assets)
         try await PHPhotoLibrary.shared().performChanges {
             PHAssetChangeRequest.deleteAssets(work.value as NSArray)

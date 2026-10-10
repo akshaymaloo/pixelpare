@@ -5,7 +5,7 @@ import Foundation
 
 enum FixtureError: Error { case failed(String) }
 
-/// Generates synthetic H.264 + AAC test videos (moving noise so encoding is non-trivial).
+/// Generates synthetic Motion-JPEG + AAC test videos (moving noise so encoding is non-trivial).
 enum Fixtures {
     static func makeDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
@@ -20,9 +20,10 @@ enum Fixtures {
         try? FileManager.default.removeItem(at: url)
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let vin = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height,
-            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: bitrate,
-                                              AVVideoExpectedSourceFrameRateKey: fps],
+            // Motion-JPEG is encoded in software. Hardware H.264/HEVC sessions in parallel test
+            // runs panicked macOS 27.0.1 (dart-ave0 PTE invalid, AppleT8110DART), see docs/resilience.md.
+            AVVideoCodecKey: AVVideoCodecType.jpeg, AVVideoWidthKey: width, AVVideoHeightKey: height,
+            AVVideoCompressionPropertiesKey: [AVVideoQualityKey: 0.9],
         ])
         if rotate90 { vin.transform = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: CGFloat(height), ty: 0) }
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: vin, sourcePixelBufferAttributes: [
@@ -105,4 +106,10 @@ enum Fixtures {
         await writer.finishWriting()
         guard writer.status == .completed else { throw FixtureError.failed(writer.error?.localizedDescription ?? "finish") }
     }
+}
+
+/// Tests that drive the hardware HEVC encoder are opt-in: `PIXELPARE_HW_ENCODE_TESTS=1 swift test`.
+/// macOS 27.0.1 kernel-panicked (dart-ave0) under parallel/cancelled hardware encode sessions from test runs.
+enum HardwareEncode {
+    static let enabled = ProcessInfo.processInfo.environment["PIXELPARE_HW_ENCODE_TESTS"] == "1"
 }

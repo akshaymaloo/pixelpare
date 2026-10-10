@@ -77,6 +77,84 @@ struct OperationJournalTests {
         let files = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
         #expect(files == ["journal.json"])
     }
+
+    private func writeV1(_ json: String) throws -> URL {
+        let url = tempJournalURL()
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(json.utf8).write(to: url)
+        return url
+    }
+
+    @Test func migratesV1FileStatesAndKeepsBackup() async throws {
+        let url = try writeV1("""
+        {"version":1,"entries":[
+         {"original":{"raw":"a"},"state":"exported","updatedAt":"2024-01-01T00:00:00Z"},
+         {"original":{"raw":"b"},"state":"importVerified","newID":{"raw":"b2"},"updatedAt":"2024-01-01T00:00:00Z"},
+         {"original":{"raw":"c"},"state":"failed","error":"boom","updatedAt":"2024-01-01T00:00:00Z"},
+         {"original":{"raw":"d"},"state":"mystery","updatedAt":"2024-01-01T00:00:00Z"},
+         {"original":{"raw":"e"},"state":"imported","newID":{"raw":"e2"},"updatedAt":"2024-01-01T00:00:00Z"}]}
+        """)
+        let j = OperationJournal(url: url)
+        #expect(await j.entry(for: mid("a"))?.state == .downloaded)
+        #expect(await j.entry(for: mid("b"))?.state == .awaitingRemovalApproval)
+        #expect(await j.canRemoveOriginal(mid("b")))
+        #expect(await j.entry(for: mid("c"))?.state == .failed)
+        #expect(await j.entry(for: mid("c"))?.error == "boom")
+        #expect(await j.entry(for: mid("d"))?.state == .planned)
+        #expect(await j.entry(for: mid("e"))?.state == .imported)
+        #expect(await j.entry(for: mid("e"))?.newID == mid("e2"))
+        #expect(await j.entry(for: mid("a"))?.attempts == [:])
+        #expect(FileManager.default.fileExists(atPath: url.appendingPathExtension("v1").path))
+
+        // The file on disk is now v2 and reloads identically.
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(text.contains("\"version\" : 2"))
+        let again = OperationJournal(url: url)
+        #expect(await again.entries() == j.entries())
+    }
+
+    @Test func v2RoundTripsAllFields() async throws {
+        let url = tempJournalURL()
+        let j = OperationJournal(url: url)
+        let when = Date(timeIntervalSince1970: 1_700_000_000.25)
+        try await j.update(mid("a"), now: when) {
+            $0.state = .importing; $0.preset = .balanced
+            $0.settings = EncodeSettings(width: 1920, height: 1080, frameRate: 30, quality: 0.6, bitsPerPixel: 0.07)
+            $0.importToken = "tok"; $0.importStartedAt = when; $0.attempts = ["import": 2]
+            $0.lastError = .init(kind: "transient", message: "x"); $0.nextRetryAt = when
+            $0.sourceBytes = 10; $0.encodedBytes = 5; $0.originalModificationDate = when; $0.encodeRung = 1
+        }
+        let back = await OperationJournal(url: url).entry(for: mid("a"))
+        #expect(back == (await j.entry(for: mid("a"))))
+        #expect(back?.importStartedAt == when)
+    }
+
+    @Test func unchangedUpdateDoesNotRewrite() async throws {
+        let url = tempJournalURL()
+        let j = OperationJournal(url: url)
+        try await j.update(mid("a")) { $0.state = .encoding }
+        let first = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        try await Task.sleep(for: .milliseconds(20))
+        try await j.update(mid("a")) { $0.state = .encoding }
+        let second = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        #expect(first == second)
+    }
+
+    @Test func removingStateAllowsRemovalDecisionForRecovery() async throws {
+        let j = OperationJournal(url: tempJournalURL())
+        try await j.update(mid("a")) { $0.state = .removing; $0.newID = mid("n") }
+        #expect(await j.canRemoveOriginal(mid("a")))
+        #expect(await j.pending().count == 1)
+        try await j.update(mid("b")) { $0.state = .skipped }
+        #expect(await j.pending().map(\.original) == [mid("a")])
+    }
+
+    @Test func importedIDsExcludeOwnJob() async throws {
+        let j = OperationJournal(url: tempJournalURL())
+        try await j.update(mid("a")) { $0.newID = mid("a2") }
+        try await j.update(mid("b")) { $0.newID = mid("b2") }
+        #expect(await j.importedIDs(excludingJob: mid("a")) == [mid("b2")])
+    }
 }
 
 struct CodableRoundTripTests {

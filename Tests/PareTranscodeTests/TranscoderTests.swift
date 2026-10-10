@@ -5,7 +5,7 @@ import PareCore
 import Testing
 @testable import PareTranscode
 
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: HardwareEncode.enabled, "Set PIXELPARE_HW_ENCODE_TESTS=1 to run hardware encode tests"))
 struct TranscoderTests {
     static func balanced() -> EncodeSettings {
         EncodeSettings(width: 1280, height: 720, frameRate: 30, quality: 0.62, bitsPerPixel: 0.07)

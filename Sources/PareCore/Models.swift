@@ -25,19 +25,23 @@ public struct MediaItem: Identifiable, Hashable, Codable, Sendable {
     public var frameRate: Double?
     public var isHDR: Bool
     public var isSlowMo: Bool
+    /// Last modification of the asset; changes when the user edits the original.
+    public var modificationDate: Date?
 
     public init(
         id: MediaID, kind: MediaKind = .photo, creationDate: Date? = nil,
         pixelWidth: Int = 0, pixelHeight: Int = 0, byteSize: Int64? = nil,
         isFavorite: Bool = false, isEdited: Bool = false, isLocal: Bool = true,
         burstID: String? = nil, duration: TimeInterval? = nil, videoCodec: String? = nil,
-        frameRate: Double? = nil, isHDR: Bool = false, isSlowMo: Bool = false
+        frameRate: Double? = nil, isHDR: Bool = false, isSlowMo: Bool = false,
+        modificationDate: Date? = nil
     ) {
         self.id = id; self.kind = kind; self.creationDate = creationDate
         self.pixelWidth = pixelWidth; self.pixelHeight = pixelHeight; self.byteSize = byteSize
         self.isFavorite = isFavorite; self.isEdited = isEdited; self.isLocal = isLocal
         self.burstID = burstID; self.duration = duration; self.videoCodec = videoCodec
         self.frameRate = frameRate; self.isHDR = isHDR; self.isSlowMo = isSlowMo
+        self.modificationDate = modificationDate
     }
 
     public var pixelCount: Int { pixelWidth * pixelHeight }

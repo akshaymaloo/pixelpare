@@ -21,6 +21,28 @@ public enum TranscodeError: Error, Sendable, Equatable, LocalizedError {
     }
 }
 
+/// Encoder fallback ladder: each rung is more conservative than the last.
+public enum EncodeRung: Int, CaseIterable, Sendable, Codable {
+    /// Average bitrate plus the preset's quality hint.
+    case preset
+    /// Average bitrate only.
+    case bitrateOnly
+    /// Average bitrate, and audio decoded and re-encoded as AAC.
+    case bitrateWithAAC
+
+    var usesQualityHint: Bool { self == .preset }
+    var reencodesAudio: Bool { self == .bitrateWithAAC }
+
+    /// The rungs that make sense for `settings` (no quality rung without a hint, no AAC rung without audio).
+    public static func ladder(for settings: EncodeSettings) -> [EncodeRung] {
+        var rungs: [EncodeRung] = []
+        if settings.quality != nil { rungs.append(.preset) }
+        rungs.append(.bitrateOnly)
+        if settings.keepAudio { rungs.append(.bitrateWithAAC) }
+        return rungs
+    }
+}
+
 /// Re-encodes a video to HEVC.
 ///
 /// `EncodeSettings.width/height` are interpreted in the video track's *natural* (unrotated) pixel space,
@@ -36,33 +58,61 @@ public struct Transcoder: Sendable {
         try await transcode(input: input, output: output, settings: settings, timeRange: nil, progress: progress)
     }
 
+    /// One attempt at a single ladder rung, with no internal fallback: the caller (the pipeline) owns the ladder.
+    /// On failure or cancellation the output file is removed.
+    public func transcode(input: URL, output: URL, settings: EncodeSettings, rung: EncodeRung,
+                          progress: @Sendable (Double) -> Void) async throws {
+        try await attempt(rung: rung, input: input, output: output, settings: settings, timeRange: nil,
+                          progress: progress)
+    }
+
+    private func attempt(rung: EncodeRung, input: URL, output: URL, settings: EncodeSettings,
+                         timeRange: CMTimeRange?, progress: @Sendable (Double) -> Void) async throws {
+        try? FileManager.default.removeItem(at: output)
+        do {
+            try await attempt(input: input, output: output, settings: settings, timeRange: timeRange,
+                              useQuality: rung.usesQualityHint, reencodeAudio: rung.reencodesAudio,
+                              progress: progress)
+        } catch is CancellationError {
+            try? FileManager.default.removeItem(at: output)
+            throw CancellationError()
+        } catch {
+            try? FileManager.default.removeItem(at: output)
+            if Task.isCancelled { throw CancellationError() }
+            throw error
+        }
+    }
+
     func transcode(input: URL, output: URL, settings: EncodeSettings, timeRange: CMTimeRange?,
                    progress: @Sendable (Double) -> Void) async throws {
-        var useQuality = settings.quality != nil
-        var reencodeAudio = false
-        while true {
-            try? FileManager.default.removeItem(at: output)
+        // Fall back step by step: first drop the quality hint, then re-encode audio.
+        var lastError: Error = TranscodeError.cannotConfigure("no encoder rung")
+        for rung in EncodeRung.ladder(for: settings) {
             do {
-                try await attempt(input: input, output: output, settings: settings, timeRange: timeRange,
-                                  useQuality: useQuality, reencodeAudio: reencodeAudio, progress: progress)
+                try await attempt(rung: rung, input: input, output: output, settings: settings,
+                                  timeRange: timeRange, progress: progress)
                 return
             } catch is CancellationError {
-                try? FileManager.default.removeItem(at: output)
                 throw CancellationError()
             } catch {
-                try? FileManager.default.removeItem(at: output)
-                if Task.isCancelled { throw CancellationError() }
-                // Fall back step by step: first drop the quality hint, then re-encode audio.
-                if useQuality { useQuality = false; continue }
-                if settings.keepAudio, !reencodeAudio { reencodeAudio = true; continue }
-                throw error
+                lastError = error
             }
         }
+        throw lastError
     }
 
     private func attempt(input: URL, output: URL, settings: EncodeSettings, timeRange: CMTimeRange?,
                          useQuality: Bool, reencodeAudio: Bool,
                          progress: @Sendable (Double) -> Void) async throws {
+        try await EncoderGate.shared.withExclusiveAccess {
+            try await attemptExclusive(input: input, output: output, settings: settings, timeRange: timeRange,
+                                       useQuality: useQuality, reencodeAudio: reencodeAudio, progress: progress)
+        }
+    }
+
+    private func attemptExclusive(input: URL, output: URL, settings: EncodeSettings, timeRange: CMTimeRange?,
+                                  useQuality: Bool, reencodeAudio: Bool,
+                                  progress: @Sendable (Double) -> Void) async throws {
         try Task.checkCancellation()
         let asset = AVURLAsset(url: input)
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {

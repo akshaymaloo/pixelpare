@@ -5,12 +5,32 @@ import Foundation
 import ImageIO
 import PareCore
 import UniformTypeIdentifiers
+import os
 
 /// Dev/fixture adapter that treats a directory as a media library.
 public final class FolderLibrary: MediaLibrary {
     public let root: URL
     private static let imageExts: Set<String> = ["jpg", "jpeg", "heic", "png"]
     private static let videoExts: Set<String> = ["mov", "mp4", "m4v"]
+
+    /// Test hooks that make the folder behave like PhotoKit does when things go wrong.
+    public struct Faults: Sendable {
+        /// `delete` throws `PHPhotosError.userCancelled` without deleting anything (the user declined the prompt).
+        public var deleteUserCancels = false
+        /// `delete` removes the first N ids, then throws `operationInterrupted`.
+        public var deleteFailsAfter: Int?
+        /// `importVideo` creates the copy and then throws this error (the response was lost).
+        public var importErrorAfterCommit: NSError?
+        /// Thrown by successive `exportVideo` calls (consumed front to back) before any file is written.
+        public var exportErrors: [NSError] = []
+        public init() {}
+    }
+
+    private let faultState = OSAllocatedUnfairLock(initialState: Faults())
+    public var faults: Faults {
+        get { faultState.withLock { $0 } }
+        set { faultState.withLock { $0 = newValue } }
+    }
 
     public init(root: URL) { self.root = root }
 
@@ -77,9 +97,30 @@ public final class FolderLibrary: MediaLibrary {
         return result
     }
 
-    private func fileInfo(_ url: URL) -> (size: Int64?, created: Date?) {
-        let v = try? url.resourceValues(forKeys: [.fileSizeKey, .creationDateKey])
-        return (v?.fileSize.map(Int64.init), v?.creationDate)
+    public func item(_ id: MediaID) async throws -> MediaItem? {
+        guard let file = try? url(for: id) else { return nil }
+        let favs = favorites()
+        let rel = relativePath(file)
+        let isFav = favs.contains(rel) || favs.contains(file.lastPathComponent)
+        if Self.videoExts.contains(file.pathExtension.lowercased()) {
+            var item = await videoItem(file, rel: rel, favorite: isFav)
+            item = MediaItem(id: id, kind: item.kind, creationDate: item.creationDate, pixelWidth: item.pixelWidth,
+                             pixelHeight: item.pixelHeight, byteSize: item.byteSize, isFavorite: item.isFavorite,
+                             duration: item.duration, videoCodec: item.videoCodec, frameRate: item.frameRate,
+                             modificationDate: item.modificationDate)
+            return item
+        }
+        return imageItem(file, rel: rel, favorite: isFav)
+    }
+
+    public func resourceSize(_ id: MediaID) async -> Int64? {
+        guard let file = try? url(for: id) else { return nil }
+        return fileInfo(file).size
+    }
+
+    private func fileInfo(_ url: URL) -> (size: Int64?, created: Date?, modified: Date?) {
+        let v = try? url.resourceValues(forKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey])
+        return (v?.fileSize.map(Int64.init), v?.creationDate, v?.contentModificationDate)
     }
 
     private static let exifFormatter: DateFormatter = {
@@ -105,7 +146,7 @@ public final class FolderLibrary: MediaLibrary {
         return MediaItem(
             id: MediaID(rel), kind: isScreenshot ? .screenshot : .photo,
             creationDate: exifDate ?? info.created, pixelWidth: w, pixelHeight: h,
-            byteSize: info.size, isFavorite: favorite)
+            byteSize: info.size, isFavorite: favorite, modificationDate: info.modified)
     }
 
     private func videoItem(_ file: URL, rel: String, favorite: Bool) async -> MediaItem {
@@ -113,7 +154,7 @@ public final class FolderLibrary: MediaLibrary {
         let asset = AVURLAsset(url: file)
         var item = MediaItem(
             id: MediaID(rel), kind: .video, creationDate: info.created, byteSize: info.size,
-            isFavorite: favorite)
+            isFavorite: favorite, modificationDate: info.modified)
         if let d = try? await asset.load(.duration), d.isNumeric { item.duration = d.seconds }
         if let track = try? await asset.loadTracks(withMediaType: .video).first {
             if let size = try? await track.load(.naturalSize),
@@ -161,12 +202,21 @@ public final class FolderLibrary: MediaLibrary {
 
     public func exportVideo(_ id: MediaID, to dir: URL, allowNetwork: Bool,
                             progress: @Sendable (Double) -> Void) async throws -> URL {
+        try Task.checkCancellation()
+        if let injected = faultState.withLock({ $0.exportErrors.isEmpty ? nil : $0.exportErrors.removeFirst() }) {
+            throw injected
+        }
         let src = try url(for: id)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fm = FileManager.default
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         let dest = dir.appendingPathComponent(src.lastPathComponent)
-        if FileManager.default.fileExists(atPath: dest.path) { try FileManager.default.removeItem(at: dest) }
+        let partial = dest.appendingPathExtension("partial")
+        try? fm.removeItem(at: partial)
+        try? fm.removeItem(at: dest)
         progress(0)
-        try FileManager.default.copyItem(at: src, to: dest)
+        try fm.copyItem(at: src, to: partial)
+        try Task.checkCancellation()
+        try fm.moveItem(at: partial, to: dest)
         progress(1)
         return dest
     }
@@ -196,20 +246,40 @@ public final class FolderLibrary: MediaLibrary {
         if let date = original.creationDate {
             try fm.setAttributes([.creationDate: date, .modificationDate: date], ofItemAtPath: dest.path)
         }
+        if let lost = faultState.withLock({ $0.importErrorAfterCommit }) { throw lost }
         return MediaID(relativePath(dest))
     }
 
+    public func findImportedCopy(fingerprint: ImportFingerprint, addedAfter: Date,
+                                 excluding: Set<MediaID>) async throws -> MediaID? {
+        for file in candidateFiles() where Self.videoExts.contains(file.pathExtension.lowercased()) {
+            let rel = relativePath(file)
+            if excluding.contains(MediaID(rel)) { continue }
+            // The directory-added date can't be forged by `importVideo`, unlike creation/modification dates.
+            if let added = try? file.resourceValues(forKeys: [.addedToDirectoryDateKey]).addedToDirectoryDate,
+               added < addedAfter.addingTimeInterval(-2) { continue }
+            let item = await videoItem(file, rel: rel, favorite: false)
+            if fingerprint.matches(item) { return item.id }
+        }
+        return nil
+    }
+
     public func delete(_ ids: [MediaID]) async throws {
+        let f = faults
+        if f.deleteUserCancels { throw PhotosErrorCodes.error(PhotosErrorCodes.userCancelled) }
         let fm = FileManager.default
         let trash = root.appendingPathComponent(".trash")
         try fm.createDirectory(at: trash, withIntermediateDirectories: true)
-        for id in ids {
-            let src = try url(for: id)
+        for (n, id) in ids.enumerated() {
+            if let limit = f.deleteFailsAfter, n >= limit {
+                throw PhotosErrorCodes.error(PhotosErrorCodes.operationInterrupted)
+            }
+            guard let src = try? url(for: id) else { continue }
             var dest = trash.appendingPathComponent(src.lastPathComponent)
-            var n = 2
+            var k = 2
             while fm.fileExists(atPath: dest.path) {
                 let base = src.deletingPathExtension().lastPathComponent
-                dest = trash.appendingPathComponent("\(base)-\(n).\(src.pathExtension)"); n += 1
+                dest = trash.appendingPathComponent("\(base)-\(k).\(src.pathExtension)"); k += 1
             }
             try fm.moveItem(at: src, to: dest)
         }
