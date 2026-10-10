@@ -51,6 +51,10 @@ public enum EncodeRung: Int, CaseIterable, Sendable, Codable {
 /// orientation of a 90°-rotated track (e.g. Photos' oriented `pixelWidth/Height`), they are swapped.
 /// Settings larger than the source are clamped to the source size (never upscaled).
 public struct Transcoder: Sendable {
+    /// `PIXELPARE_SOFTWARE_ENCODE=1` keeps encodes off the hardware video encoder (AVE). Slower, but it avoids the
+    /// macOS 27.0.1 dart-ave0 kernel panic seen with test runs (docs/resilience.md §9).
+    public static let softwareEncoderOnly = ProcessInfo.processInfo.environment["PIXELPARE_SOFTWARE_ENCODE"] == "1"
+
     public init() {}
 
     public func transcode(input: URL, output: URL, settings: EncodeSettings,
@@ -160,6 +164,12 @@ public struct Transcoder: Sendable {
             AVVideoCompressionPropertiesKey: compression,
         ]
         if let color = Self.colorProperties(format) { videoSettings[AVVideoColorPropertiesKey] = color }
+        if Self.softwareEncoderOnly {
+            videoSettings[AVVideoEncoderSpecificationKey] = [
+                kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder as String: false,
+                kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder as String: false,
+            ]
+        }
         let videoIn = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings, sourceFormatHint: nil)
         videoIn.transform = transform
         videoIn.expectsMediaDataInRealTime = false

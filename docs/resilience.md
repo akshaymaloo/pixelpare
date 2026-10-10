@@ -80,7 +80,24 @@ crash between PhotoKit commit and journal write ⇒ reconciliation adopts, no du
 resumes; disk full → waits; stall → retry; encoder ladder fallback; savings < 15 % ⇒ skipped; delete declined,
 partial delete, already-deleted original, new copy vanished before delete; original edited mid-job ⇒ skipped;
 **seeded randomized fault schedule ×300 runs** asserting I1–I5. Plus one end-to-end test with FolderLibrary +
-real Transcoder on a generated clip.
+real Transcoder on a generated clip, and `RealClipsTests`: the full pipeline over phone-like clips
+(`scripts/make-test-videos.sh`) for every preset, asserting the copy is HEVC, smaller, the same duration, the same
+orientation, keeps its audio, and that originals are removed after approval.
+
+Results on 2026-10-09 (software HEVC encoder, M3; SSIM from `scripts/score-test-videos.sh`):
+
+| Clip | Gentle | Balanced | Smaller resolution |
+|---|---|---|---|
+| 1080p30 H.264 20 Mbps, grain | −68 %, SSIM 0.983 | −77 %, 0.981 | n/a (already ≤ 1920) |
+| 1080p portrait (rotation 90°), grain | −68 %, 0.984 | −77 %, 0.981 | n/a |
+| 1080p30 H.264 17 Mbps, clean | −62 %, 0.997 | −73 %, 0.995 | n/a |
+| 4K60 H.264 55 Mbps | skipped (< 15 % saving) | −33 %, 0.995 | → 1080p, −84 %, 0.991 |
+| 1080p HEVC 4 Mbps | skipped: already optimized | skipped | skipped |
+| 2 s clip | skipped: too short | skipped | skipped |
+
+Random grain can't be compressed, so the grain clips score lower than clean footage. When scoring, give both inputs the
+same colour tags. Otherwise ffmpeg converts one of them before comparing, and an untagged source scored ~0.95 for a
+copy that was really 0.996.
 
 ## 9. Hardware encoder safety (incident 2026-10-09)
 Four kernel panics on the dev Mac (macOS 27.0.1 / 26A434, M3 Pro/Max T6031):
@@ -90,11 +107,14 @@ client right before the 14:36 and 14:45 panics. It was running parallel 1280×72
 transcodes and a mid-encode cancel, and the encoder logged `fail to stop AVC` first. This is an OS/driver bug, but we
 must not trigger it:
 - **Tests**: fixtures are written as Motion-JPEG (software). Suites that use the real HEVC encoder
-  (`TranscoderTests`, `Pipeline end to end`) are **opt-in** and serialized:
-  `PIXELPARE_HW_ENCODE_TESTS=1 swift test --no-parallel --filter 'TranscoderTests|end to end'`.
-  Run them only when you're prepared for a possible restart until Apple ships a fix.
+  (`TranscoderTests`, `Pipeline end to end`, `RealClipsTests`) are **opt-in** and serialized. Run them with
+  `PIXELPARE_SOFTWARE_ENCODE=1`: `Transcoder.softwareEncoderOnly` then passes an `AVVideoEncoderSpecificationKey` that
+  disables the hardware encoder, so Apple's software HEVC encoder (`VCPHEVC` in the logs) does the work and AVE is
+  never touched. Check with `log show --predicate 'sender == "AVE_Drv" OR eventMessage CONTAINS "AVE_Session"'`
+  (0 messages across all runs above). `PIXELPARE_HW_ENCODE_TESTS=1` still runs them on the hardware encoder. Use it
+  only when you're prepared for a possible restart, until Apple ships a fix.
 - **App**: `EncoderGate` (PareTranscode) allows one hardware encode session per process, FIFO and
   cancellation-aware. Full transcodes and preview clips never overlap.
 - Follow-up: file Feedback with `/Library/Logs/DiagnosticReports/panic-full-2026-10-09-144519.0002.panic`. If
-  panics recur in the app, add a hardware-free fallback rung (software HEVC with
-  `kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder = false`) behind a setting.
+  panics recur in the app, expose `Transcoder.softwareEncoderOnly` as a setting or a final fallback rung. It is
+  much slower than hardware (a Gentle pass over ~37 s of 1080p took ~2.5 min on an M3) but proven above.

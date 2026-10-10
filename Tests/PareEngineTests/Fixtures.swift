@@ -108,8 +108,10 @@ enum Fixtures {
     }
 }
 
-/// Tests that drive the hardware HEVC encoder are opt-in: `PIXELPARE_HW_ENCODE_TESTS=1 swift test`.
-/// macOS 27.0.1 kernel-panicked (dart-ave0) under parallel/cancelled hardware encode sessions from test runs.
+/// Tests that run real HEVC encodes are opt-in. Safe on this Mac: `PIXELPARE_SOFTWARE_ENCODE=1 swift test --no-parallel`
+/// (software encoder). Hardware: `PIXELPARE_HW_ENCODE_TESTS=1` — macOS 27.0.1 kernel-panicked (dart-ave0) under
+/// parallel/cancelled hardware encode sessions from test runs.
 enum HardwareEncode {
     static let enabled = ProcessInfo.processInfo.environment["PIXELPARE_HW_ENCODE_TESTS"] == "1"
+        || ProcessInfo.processInfo.environment["PIXELPARE_SOFTWARE_ENCODE"] == "1"
 }

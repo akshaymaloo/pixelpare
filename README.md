@@ -43,6 +43,19 @@ xcodegen generate   # then open PixelPare.xcodeproj
 
 Set your `DEVELOPMENT_TEAM` in `project.yml` (or Xcode → Signing) to run on a device.
 
-> **Hardware encode tests are opt-in.** Running many VideoToolbox encodes in parallel from `swift test` has caused
-> kernel panics on macOS 27.0.1 (see `docs/resilience.md` §9). Fixtures use Motion-JPEG; the real HEVC suites run only
-> with `PIXELPARE_HW_ENCODE_TESTS=1 swift test --no-parallel --filter 'TranscoderTests|end to end'`.
+> **Real encode tests are opt-in.** Hardware VideoToolbox encodes from `swift test` have caused kernel panics on
+> macOS 27.0.1 (see `docs/resilience.md` §9). Fixtures use Motion-JPEG, and the real HEVC suites run on Apple's
+> *software* HEVC encoder:
+>
+> ```sh
+> PIXELPARE_SOFTWARE_ENCODE=1 swift test --no-parallel --filter 'TranscoderTests|folderLibraryWithRealTranscoder'
+> ```
+>
+> Compression on phone-like clips (every preset, with savings and an SSIM quality score):
+>
+> ```sh
+> scripts/make-test-videos.sh          # ffmpeg (software x264/x265) → .scratch/videos
+> PIXELPARE_SOFTWARE_ENCODE=1 PIXELPARE_TEST_VIDEOS=.scratch/videos PIXELPARE_TEST_OUTPUT=.scratch/video-output \
+>   swift test --no-parallel --filter pipelineCompressesPhoneLikeClips
+> scripts/score-test-videos.sh         # SSIM of each copy against its original
+> ```

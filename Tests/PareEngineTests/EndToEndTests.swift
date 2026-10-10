@@ -5,7 +5,7 @@ import PareLibrary
 import PareTranscode
 import Testing
 
-@Suite("Pipeline end to end", .serialized, .enabled(if: HardwareEncode.enabled, "Set PIXELPARE_HW_ENCODE_TESTS=1 to run hardware encode tests"))
+@Suite("Pipeline end to end", .serialized, .enabled(if: HardwareEncode.enabled, "Set PIXELPARE_SOFTWARE_ENCODE=1 (or PIXELPARE_HW_ENCODE_TESTS=1) to run encode tests"))
 struct EndToEndTests {
     @Test func folderLibraryWithRealTranscoderCompressesImportsAndRemoves() async throws {
         let dir = try scratchDir()
