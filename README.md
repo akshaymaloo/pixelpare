@@ -36,12 +36,13 @@ How it stays safe:
 **Before you start**
 - Removed items go to *Recently Deleted* and can be recovered for 30 days. The exception: **if your iCloud storage is
   already full, deletes are immediate**. In that case, test on a small set first.
-- Video compression downloads iCloud originals over **Wi‑Fi or cellular**, so mind your data plan; there's no
-  Wi‑Fi-only switch yet. It needs free space for the original plus the copy, with 1 GB to spare, and it pauses in Low
+- Video compression downloads iCloud originals over **Wi‑Fi or cellular** by default, so mind your data plan. Turn off
+  *Download videos over cellular* in Settings to make it wait for Wi‑Fi instead (Low Data Mode counts as
+  metered too). It needs free space for the original plus the copy, with 1 GB to spare, and it pauses in Low
   Power Mode or when the phone is hot.
-- Keep PixelPare in the foreground while it compresses. The screen stays awake while work is running. If you leave
-  the app for longer than about 30 s, iOS suspends it; the job then picks up where it stopped the next time you open
-  the app.
+- A compression run you start keeps going when you leave the app (iOS shows system progress for it). iOS can still
+  stop it, for example when the battery is low, the phone is hot or you cancel it there; the job then picks up where
+  it stopped the next time you open the app. The screen stays awake while work is running in the foreground.
 
 **Run it**
 1. Connect the iPhone by cable (first time only), unlock it and tap *Trust*. On the phone, turn on
@@ -67,8 +68,9 @@ How it stays safe:
 4. Then try a batch. Kill the app mid-compression and reopen it: the job should offer to resume, with no duplicate copies.
 
 Already-efficient HEVC, HDR / Dolby Vision, slow-motion, edited and short (< 3 s) videos are skipped on purpose. Most
-recent iPhone footage is HDR. Its metadata can only be read after download, so it shows up in the list and is
-skipped after downloading.
+recent iPhone footage is HDR (often Dolby Vision HEVC 10-bit). Videos already on the device are checked right
+after the scan and moved to *Skipped*. For iCloud-only videos the format can only be read after download, so they
+stay in the list and are skipped after downloading.
 
 Developer launch arguments (Xcode → Scheme → Arguments):
 - `--sample`: a built-in fake library that never touches Photos.
@@ -77,7 +79,8 @@ Developer launch arguments (Xcode → Scheme → Arguments):
 
 ## Known limitations
 
-- **Background:** no `BGContinuedProcessingTask` yet, so long batches need the app open.
+- **Background:** runs continue via `BGContinuedProcessingTask`, but the system may expire them; progress is kept
+  and resumes next launch. Not available in the simulator.
 - **Not built yet:** screen-recordings tray, biggest-items view, Live Photo → still, burst leftovers. See
   [docs/feature-ideas.md](docs/feature-ideas.md).
 - **HDR videos** are never re-encoded (risk of losing Dolby Vision metadata).

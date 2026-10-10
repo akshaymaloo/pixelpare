@@ -118,6 +118,14 @@ public final class AppModel {
     public var path: [Destination] = []
     /// Calm mode: no animation, sound or haptics anywhere in the app.
     public var calmMode = false { didSet { defaults.set(calmMode, forKey: Self.calmKey) } }
+    /// When off, iCloud originals are only downloaded on Wi‑Fi without Low Data Mode; the run waits otherwise.
+    public var allowCellular = true {
+        didSet {
+            defaults.set(allowCellular, forKey: Self.cellularKey)
+            let allow = allowCellular, p = pipeline
+            Task { await p.setAllowExpensiveNetwork(allow) }
+        }
+    }
     /// `--screen lighttable|press|screenshots|blurry|receipt` opens that surface once the first scan finishes.
     public private(set) var launchScreen: String?
     public var showPlan = false
@@ -130,16 +138,19 @@ public final class AppModel {
     private var pipeline: VideoPipeline
     private let supportDirectory: URL
     @ObservationIgnored private var scanTask: Task<Void, Never>?
+    @ObservationIgnored private var detailsTask: Task<Void, Never>?
     @ObservationIgnored private var executionTask: Task<Void, Never>?
     @ObservationIgnored private var scopedFolder: URL?
     private var jobRows: [MediaID: JobRow] = [:]
     private var jobOrder: [MediaID] = []
     private var workPaused = false
+    @ObservationIgnored private var continued: ContinuedRun?
     @ObservationIgnored private let thumbnails = ThumbnailCache()
     @ObservationIgnored private let defaults: UserDefaults
 
     static let folderBookmarkKey = "pixelpare.folderBookmark"
     static let calmKey = "pixelpare.calm"
+    static let cellularKey = "pixelpare.cellular"
 
     /// `--folder <path>` / `PIXELPARE_FOLDER` select a FolderLibrary; `--sample` / `PIXELPARE_SAMPLE=1` the in-memory
     /// SampleLibrary; otherwise the saved Settings choice, otherwise the Photos library.
@@ -148,6 +159,7 @@ public final class AppModel {
                 supportDirectory: URL? = nil, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.calmMode = defaults.bool(forKey: Self.calmKey)
+        self.allowCellular = defaults.object(forKey: Self.cellularKey) as? Bool ?? true
         if let i = arguments.firstIndex(of: "--screen"), arguments.indices.contains(i + 1) { launchScreen = arguments[i + 1] }
         var chosen: LibrarySource = .photos
         if let i = arguments.firstIndex(of: "--folder"), arguments.indices.contains(i + 1) {
@@ -171,7 +183,8 @@ public final class AppModel {
         self.library = lib
         let j = OperationJournal(url: Self.journalURL(support, chosen))
         self.journal = j
-        self.pipeline = Self.makePipeline(library: lib, journal: j, support: support, source: chosen)
+        self.pipeline = Self.makePipeline(library: lib, journal: j, support: support, source: chosen,
+                                      allowCellular: defaults.object(forKey: Self.cellularKey) as? Bool ?? true)
         if case .folder(let url) = chosen { _ = url.startAccessingSecurityScopedResource(); scopedFolder = url }
     }
 
@@ -184,7 +197,8 @@ public final class AppModel {
         self.library = library
         let j = OperationJournal(url: Self.journalURL(supportDirectory, source))
         self.journal = j
-        self.pipeline = Self.makePipeline(library: library, journal: j, support: supportDirectory, source: source)
+        self.pipeline = Self.makePipeline(library: library, journal: j, support: supportDirectory, source: source,
+                                      allowCellular: true)
     }
 
     #if os(macOS)
@@ -204,9 +218,11 @@ public final class AppModel {
     }
 
     private static func makePipeline(library: any MediaLibrary, journal: OperationJournal, support: URL,
-                                     source: LibrarySource) -> VideoPipeline {
-        VideoPipeline(library: library, journal: journal,
-                      workspace: JobWorkspace(root: jobsURL(support, source)))
+                                     source: LibrarySource, allowCellular: Bool) -> VideoPipeline {
+        var config = PipelineConfig()
+        config.allowExpensiveNetwork = allowCellular
+        return VideoPipeline(library: library, journal: journal,
+                             workspace: JobWorkspace(root: jobsURL(support, source)), config: config)
     }
 
     /// A folder's identity is a short hash of its resolved path, so two folders never share a journal, cache or workspace.
@@ -229,6 +245,10 @@ public final class AppModel {
 
     private static func jobsURL(_ dir: URL, _ s: LibrarySource) -> URL {
         dir.appendingPathComponent("Jobs\(sourceSuffix(s))", isDirectory: true)
+    }
+
+    private var detailsCacheURL: URL {
+        supportDirectory.appendingPathComponent("videodetails\(Self.sourceSuffix(source)).json")
     }
 
     private var cacheURL: URL {
@@ -305,7 +325,8 @@ public final class AppModel {
         source = newSource
         library = Self.makeLibrary(newSource)
         journal = OperationJournal(url: Self.journalURL(supportDirectory, newSource))
-        pipeline = Self.makePipeline(library: library, journal: journal, support: supportDirectory, source: newSource)
+        pipeline = Self.makePipeline(library: library, journal: journal, support: supportDirectory, source: newSource,
+                                  allowCellular: allowCellular)
         thumbnails.removeAll()
         resetResults()
         recoveredJobs = []; acceptedRecovered = []
@@ -349,6 +370,7 @@ public final class AppModel {
     }
 
     private func resetResults() {
+        detailsTask?.cancel()
         items = [:]; groups = []; screenshotIDs = []; eligibleVideoIDs = []; skippedVideos = []; blurryIDs = []
         selectedScreenshots = []; selectedBlurry = []; selectedVideos = []; draftKeep = [:]; keepers = [:]; videoEstimates = [:]
         previewErrors = [:]; unanalyzedCount = 0
@@ -366,6 +388,32 @@ public final class AppModel {
         unanalyzedCount = r.unanalyzedCount
         lastScan = Date()
         scanState = .ready
+        probeVideoDetails()
+    }
+
+    /// Background pass after the scan: moves HDR and high-frame-rate videos out of the eligible list.
+    private func probeVideoDetails() {
+        detailsTask?.cancel()
+        let videos = eligibleVideoIDs.compactMap { items[$0] }
+        guard !videos.isEmpty else { return }
+        let lib = library, url = detailsCacheURL
+        detailsTask = Task { [weak self] in
+            await VideoDetailsProber.run(items: videos, library: lib, cacheURL: url) { id, details in
+                self?.applyDetails(details, to: id)
+            }
+        }
+    }
+
+    func applyDetails(_ details: VideoDetails, to id: MediaID) {
+        guard let item = items[id] else { return }
+        let updated = item.applying(details)
+        guard updated != item else { return }
+        items[id] = updated
+        let r = PresetPolicy.reclassify(eligible: eligibleVideoIDs, skipped: skippedVideos, items: items)
+        guard r.eligible != eligibleVideoIDs else { return }
+        eligibleVideoIDs = r.eligible
+        skippedVideos = r.skipped
+        selectedVideos.remove(id)
     }
 
     // MARK: Thumbnails
@@ -705,6 +753,12 @@ public final class AppModel {
         if !ids.isEmpty, !Task.isCancelled {
             let activity = BackgroundActivity("Compressing videos")
             defer { activity.end() }
+            let p = pipeline
+            let run = ContinuedRun(title: "Compressing videos", subtitle: "\(ids.count) to go", total: ids.count) {
+                await p.pause()
+            }
+            continued = run
+            defer { continued = nil }
             await pipeline.release(Set(recoveredIDs))
             recoveredJobs.removeAll { recoveredIDs.contains($0.original) }
             acceptedRecovered.subtract(recoveredIDs)
@@ -744,6 +798,7 @@ public final class AppModel {
                 }
             }
             if unfinished > 0 { summary.notes.append("Stopped early; \(unfinished) videos will continue next time.") }
+            run.finish(success: unfinished == 0)
         }
         await refreshHistory()
         stage = .done(summary)
@@ -850,6 +905,8 @@ public final class AppModel {
         let rows = jobOrder.compactMap { jobRows[$0] }
         let finished = rows.filter { [.copyReady, .skipped, .failed, .cancelled].contains($0.phase) }.count
         let active = rows.first { $0.phase == .working || $0.phase == .waiting || $0.phase == .retrying }
+        continued?.update(completed: finished, total: rows.count,
+                          subtitle: "\(min(finished + 1, rows.count)) of \(rows.count)" + (active.map { " · \($0.message)" } ?? ""))
         stage = .working(WorkProgress(
             title: workPaused ? "Paused" : "Pressing \(min(finished + 1, rows.count)) of \(rows.count)",
             detail: active.map { "\(title(for: $0.id)) — \($0.message)" } ?? "",

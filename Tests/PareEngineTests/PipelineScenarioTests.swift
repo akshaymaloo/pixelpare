@@ -685,3 +685,57 @@ struct PipelineSafetyTests {
         await p.shutdown()
     }
 }
+
+@Suite("Pipeline resilience: Wi‑Fi only")
+struct WiFiOnlyTests {
+    @Test func waitsForWiFiWithoutDownloadingOverCellularOrLowDataMode() async throws {
+        for status in [NetworkStatus(isConnected: true, isExpensive: true),
+                       NetworkStatus(isConnected: true, isConstrained: true)] {
+            let rig = try Rig()
+            rig.config.allowExpensiveNetwork = false
+            var v = makeVideo(1); v.isLocal = false
+            rig.network.set(status)
+            let (net, lib) = (rig.network, rig.library)
+            nonisolated(unsafe) var exportsWhileWaiting = -1
+            rig.clock.onSleep = { n in
+                if n == 3 { exportsWhileWaiting = lib.exportCount; net.set(.online) }
+            }
+            let p = rig.pipeline()
+            let log = EventLog.collect(p)
+            lib.add(v)
+            try await p.enqueue([v], preset: .balanced)
+            await p.waitUntilIdle()
+            #expect(exportsWhileWaiting == 0)
+            #expect(await rig.entry(v.id)?.state == .awaitingRemovalApproval)
+            #expect(await rig.entry(v.id)?.attempts["download"] == nil)
+            try await Task.sleep(for: .milliseconds(50))
+            #expect(log.events.contains(.waiting(v.id, .expensiveNetwork)))
+            #expect(log.events.contains(.resumed(v.id)))
+            await p.shutdown()
+        }
+    }
+
+    @Test func turningCellularOnReleasesAWaitingDownload() async throws {
+        let rig = try Rig()
+        rig.config.allowExpensiveNetwork = false
+        var v = makeVideo(1); v.isLocal = false
+        rig.network.set(NetworkStatus(isConnected: true, isExpensive: true))
+        let p = rig.pipeline()
+        rig.clock.onSleep = { n in if n == 2 { Task { await p.setAllowExpensiveNetwork(true) } } }
+        rig.library.add(v)
+        try await p.enqueue([v], preset: .balanced)
+        await p.waitUntilIdle()
+        #expect(await rig.entry(v.id)?.state == .awaitingRemovalApproval)
+        await p.shutdown()
+    }
+
+    @Test func localVideosNeverWaitForWiFi() async throws {
+        let rig = try Rig()
+        rig.config.allowExpensiveNetwork = false
+        rig.network.set(NetworkStatus(isConnected: true, isExpensive: true))
+        let p = try await rig.run([makeVideo(1)])
+        #expect(await rig.entry(makeVideo(1).id)?.state == .awaitingRemovalApproval)
+        #expect(rig.clock.sleepCount == 0)
+        await p.shutdown()
+    }
+}

@@ -1,5 +1,6 @@
 #if canImport(Photos)
 import CoreGraphics
+import AVFoundation
 import CryptoKit
 import Foundation
 import PareCore
@@ -131,6 +132,25 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
         store(id.raw, a)
         return Self.mediaItem(a)
     }
+
+    public func videoDetails(_ id: MediaID) async -> VideoDetails? {
+        guard let a = try? asset(id), a.mediaType == .video else { return nil }
+        let opts = PHVideoRequestOptions()
+        opts.isNetworkAccessAllowed = false
+        opts.version = .original
+        opts.deliveryMode = .highQualityFormat
+        let claimed = Box(false)
+        let avAsset: AssetBox? = await withCheckedContinuation { cont in
+            PHImageManager.default().requestAVAsset(forVideo: a, options: opts) { asset, _, _ in
+                guard claimed.claim() else { return }
+                cont.resume(returning: asset.map(AssetBox.init))
+            }
+        }
+        guard let avAsset else { return nil }
+        return await VideoDetailsProbe.load(avAsset.asset)
+    }
+
+    private struct AssetBox: @unchecked Sendable { let asset: AVAsset }
 
     public func resourceSize(_ id: MediaID) async -> Int64? {
         guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: nil).firstObject,

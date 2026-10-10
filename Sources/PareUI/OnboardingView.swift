@@ -68,6 +68,12 @@ struct SettingsView: View {
                 Button("Choose a folder (developer / testing)…") { pickFolder = true }
                 Button("Scan again") { model.rescan() }
             }
+            Section("Videos") {
+                @Bindable var m = model
+                Toggle("Download videos over cellular", isOn: $m.allowCellular)
+                Text("Turn off to download iCloud videos only on Wi‑Fi. Pressing waits for Wi‑Fi instead of using mobile data.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
             Section("Safety") {
                 Text("Matching is conservative: only very similar shots are grouped. Favorites are never suggested for removal, every group keeps at least one photo, and original videos are only removed after you approve it.")
                     .font(.footnote).foregroundStyle(.secondary)

@@ -130,6 +130,9 @@ public actor VideoPipeline {
         kick()
     }
 
+    /// Takes effect for the current and later downloads; a job waiting for Wi‑Fi starts as soon as this is turned on.
+    public func setAllowExpensiveNetwork(_ allow: Bool) { config.allowExpensiveNetwork = allow }
+
     public func pause() {
         guard !paused else { return }
         paused = true

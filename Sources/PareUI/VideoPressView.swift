@@ -268,7 +268,7 @@ private struct VideoRow: View {
                     Text(err).font(.caption).foregroundStyle(Workshop.amberDark)
                 }
                 if item?.isLocal == false {
-                    Label("In iCloud. It's downloaded first.", systemImage: "icloud.and.arrow.down")
+                    Label("In iCloud. It's downloaded first, then skipped if it's HDR.", systemImage: "icloud.and.arrow.down")
                         .font(.caption).foregroundStyle(Workshop.ink2)
                 }
             }

@@ -81,7 +81,7 @@ targets:
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         NSPhotoLibraryUsageDescription: PixelPare looks at your photos and videos to find similar shots, old screenshots and large videos. Nothing is removed until you approve it.
         NSPhotoLibraryAddUsageDescription: PixelPare adds smaller copies of videos you choose to compress to your library.
-        # BGTaskSchedulerPermittedIdentifiers is intentionally absent: BGContinuedProcessingTask is a TODO (see BackgroundActivity.swift).
+        BGTaskSchedulerPermittedIdentifiers: ["com.akshaymaloo.pixelpare.run.*"]
     settings:
       base:
         PRODUCT_NAME: PixelPare

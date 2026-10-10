@@ -75,10 +75,13 @@ extension VideoPipeline {
         if sourceURL == nil {
             try await ensureDisk(id, needed: (item.byteSize ?? 0) + config.diskHeadroom)
             if !item.isLocal {
-                let allow = config.allowExpensiveNetwork
-                try await waitUntil(id, .network) {
+                let blocked = { [self] (s: NetworkStatus) in
+                    !config.allowExpensiveNetwork && (s.isExpensive || s.isConstrained)
+                }
+                let s = network.status()
+                try await waitUntil(id, s.isConnected ? .expensiveNetwork : .network) {
                     let s = network.status()
-                    return s.isConnected && (allow || !(s.isExpensive || s.isConstrained))
+                    return s.isConnected && !blocked(s)
                 }
             }
             let staging = workspace.stagingDirectory(for: id)

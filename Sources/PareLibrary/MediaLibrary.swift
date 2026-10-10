@@ -84,6 +84,9 @@ public protocol MediaLibrary: Sendable {
     func exactHash(_ id: MediaID) async throws -> String?
     /// Size in bytes of the asset's primary resource, nil if unknown or gone.
     func resourceSize(_ id: MediaID) async -> Int64?
+    /// Codec, frame rate and HDR-ness of a video that is available on this device, nil when unknown or when reading
+    /// it would need a download. Never uses the network.
+    func videoDetails(_ id: MediaID) async -> VideoDetails?
     func importVideo(_ file: URL, preserving original: MediaItem) async throws -> MediaID
     /// A previously imported copy matching `fingerprint` that was added after `addedAfter`, ignoring `excluding`.
     func findImportedCopy(fingerprint: ImportFingerprint, addedAfter: Date,
@@ -94,6 +97,7 @@ public protocol MediaLibrary: Sendable {
 }
 
 public extension MediaLibrary {
+    func videoDetails(_ id: MediaID) async -> VideoDetails? { nil }
     func item(_ id: MediaID) async throws -> MediaItem? { try await items().first { $0.id == id } }
     func resourceSize(_ id: MediaID) async -> Int64? { (try? await item(id))?.byteSize }
     func findImportedCopy(fingerprint: ImportFingerprint, addedAfter: Date,

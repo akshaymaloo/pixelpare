@@ -113,6 +113,11 @@ public final class FolderLibrary: MediaLibrary {
         return imageItem(file, rel: rel, favorite: isFav)
     }
 
+    public func videoDetails(_ id: MediaID) async -> VideoDetails? {
+        guard let file = try? url(for: id) else { return nil }
+        return await VideoDetailsProbe.load(AVURLAsset(url: file))
+    }
+
     public func resourceSize(_ id: MediaID) async -> Int64? {
         guard let file = try? url(for: id) else { return nil }
         return fileInfo(file).size

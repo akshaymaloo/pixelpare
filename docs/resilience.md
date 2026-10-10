@@ -72,9 +72,20 @@ Unknown errors are treated as `.transient` up to the retry cap, then `.permanent
 - Workspace: Application Support/PixelPare/Jobs (excluded from backup), not tmp — survives relaunch.
 - `BackgroundActivity` (PareUI) wraps every scan and video run.
   - Mac: `ProcessInfo.beginActivity(.userInitiated + idleSystemSleepDisabled)`.
-  - iOS (today): screen auto-lock is disabled while work runs, and a `beginBackgroundTask` assertion covers short
-    trips out of the app. When it expires, iOS suspends the app and the journal resumes the job on the next launch.
-  - iOS (planned): `BGContinuedProcessingTask` for long batches with system progress UI.
+  - iOS: screen auto-lock is disabled while work runs, and a `beginBackgroundTask` assertion covers short trips out
+    of the app. When it expires, iOS suspends the app and the journal resumes the job on the next launch.
+  - iOS 26: a video run also submits a `BGContinuedProcessingTaskRequest` (`ContinuedRun`, id
+    `com.akshaymaloo.pixelpare.run.<uuid>`, permitted via `BGTaskSchedulerPermittedIdentifiers`, strategy `.fail`, no
+    GPU). Progress is `completed/total` jobs with a "3 of 12" subtitle. On expiration the pipeline is paused (the
+    journal keeps every job resumable) and the task completes with `success: false`. If the system refuses the request
+    (simulator, load), only the `beginBackgroundTask` path applies. The system may expire the task at any time.
+- Wi‑Fi only: the "Download videos over cellular" setting maps to `PipelineConfig.allowExpensiveNetwork`
+  (`setAllowExpensiveNetwork` updates a live pipeline). With it off, a download of an iCloud-only original waits
+  (`WaitReason.expensiveNetwork`, not an error or an attempt) until the network is neither expensive nor constrained.
+  Thumbnail and preview exports never use the network.
+- HDR pre-detection: `MediaLibrary.videoDetails` (default nil) probes locally available videos after the scan
+  (PhotoKit `requestAVAsset`, network off; `AVURLAsset` for folders), results cached by id + size + modification date.
+  HDR/high-frame-rate videos move to Skipped. iCloud-only videos are still re-probed after download (step 4).
 
 ## 8. Tests (fault injection)
 Scriptable `FakeLibrary` + `FakeEncoder` + fake conditions:
