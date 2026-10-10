@@ -18,10 +18,17 @@ final class StillFakeLibrary: MediaLibrary, @unchecked Sendable {
     var userDeclinesDelete = false
     var copyDropsFavorite = false
     var copyWidthDelta = 0
+    private var photoData: [MediaID: String] = [:]
+    var digestUnavailable = false
     var beforeDelete: (@Sendable (StillFakeLibrary) -> Void)?
 
     func add(_ item: MediaItem) { lock.withLock { assets[item.id] = item } }
     func modify(_ id: MediaID) { lock.withLock { assets[id]?.modificationDate = Date(timeIntervalSince1970: 9) } }
+    func setPhotoData(_ id: MediaID, _ data: String) { lock.withLock { photoData[id] = data } }
+    func markEdited(_ id: MediaID) { lock.withLock { assets[id]?.isEdited = true } }
+    func stillResourceDigest(_ id: MediaID) async throws -> String? {
+        lock.withLock { digestUnavailable || assets[id] == nil ? nil : (photoData[id] ?? "photo-\(id.raw)") }
+    }
     func has(_ id: MediaID) -> Bool { lock.withLock { assets[id] != nil } }
     func stills() -> [MediaItem] { lock.withLock { assets.values.filter { $0.kind == .photo } } }
     func allItems() -> [MediaItem] { lock.withLock { Array(assets.values) } }
@@ -47,6 +54,7 @@ final class StillFakeLibrary: MediaLibrary, @unchecked Sendable {
             guard let o = assets[id] else { throw LibraryError.notFound(id.raw) }
             counter += 1; createCount += 1
             let new = MediaID("still-\(counter)")
+            photoData[new] = photoData[id] ?? "photo-\(id.raw)"
             assets[new] = MediaItem(id: new, kind: .photo, creationDate: o.creationDate, pixelWidth: o.pixelWidth + copyWidthDelta,
                                     pixelHeight: o.pixelHeight, byteSize: o.byteSize, isFavorite: o.isFavorite && !copyDropsFavorite,
                                     modificationDate: Date())
@@ -74,9 +82,10 @@ final class StillFakeLibrary: MediaLibrary, @unchecked Sendable {
 @Suite struct StillConverterTests {
     let created = Date(timeIntervalSince1970: 1_700_000_000)
 
-    func live(_ s: String, fav: Bool = false, edited: Bool = false) -> MediaItem {
-        MediaItem(id: MediaID(s), kind: .livePhoto, creationDate: created, pixelWidth: 4032, pixelHeight: 3024,
-                  byteSize: 3_000_000, isFavorite: fav, isEdited: edited, modificationDate: Date(timeIntervalSince1970: 5),
+    func live(_ s: String, fav: Bool = false, edited: Bool = false, dated: Bool = true) -> MediaItem {
+        MediaItem(id: MediaID(s), kind: .livePhoto, creationDate: dated ? created : nil, pixelWidth: 4032, pixelHeight: 3024,
+                  byteSize: 3_000_000, isFavorite: fav, isEdited: edited,
+                  modificationDate: dated ? Date(timeIntervalSince1970: 5) : nil,
                   pairedVideoBytes: 2_500_000)
     }
 
@@ -220,6 +229,120 @@ final class StillFakeLibrary: MediaLibrary, @unchecked Sendable {
         let second = await converter(lib, url).convert([item])
         #expect(second.converted.count == 1 && second.converted[0].copy != gone)
         #expect(lib.createCount == 2)
+    }
+}
+
+
+extension StillConverterTests {
+    func lookalike(_ id: String, at date: Date? = nil) -> MediaItem {
+        MediaItem(id: MediaID(id), kind: .photo, creationDate: date ?? created, pixelWidth: 4032, pixelHeight: 3024,
+                  byteSize: 3_000_000, modificationDate: Date())
+    }
+
+    @Test func freshConversionNeverAdoptsAnUnrelatedLookalike() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1")
+        lib.add(item)
+        lib.add(lookalike("other"))   // same date and size, different pixels
+        lib.setPhotoData(MediaID("other"), "something else")
+        let r = await converter(lib, url).convert([item])
+        #expect(r.converted.count == 1)
+        #expect(lib.createCount == 1, "a real copy was made")
+        #expect(r.converted[0].copy.raw.hasPrefix("still-"))
+        #expect(lib.has(MediaID("other")))
+    }
+
+    @Test func identicalLookalikeIsNotAdoptedWithoutAJournaledImport() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1")
+        lib.add(item)
+        lib.add(lookalike("dup"))
+        lib.setPhotoData(MediaID("dup"), "photo-L1")
+        let r = await converter(lib, url).convert([item])
+        #expect(lib.createCount == 1)
+        #expect(r.converted.first?.copy.raw.hasPrefix("still-") == true)
+    }
+
+    @Test func orphanWithDifferentContentIsNotAdoptedAfterCrash() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1")
+        lib.add(item)
+        lib.failAfterCreate = true
+        _ = await converter(lib, url).convert([item])
+        let orphan = try #require(lib.stills().first).id
+        lib.setPhotoData(orphan, "different")
+        let r = await converter(lib, url).convert([item])
+        #expect(lib.createCount == 2, "the mismatching orphan was not adopted")
+        #expect(r.converted.first?.copy != orphan)
+    }
+
+    @Test func ambiguousOrphansFailSafe() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1")
+        lib.add(item)
+        lib.failAfterCreate = true
+        _ = await converter(lib, url).convert([item])
+        lib.add(lookalike("twin"))
+        lib.setPhotoData(MediaID("twin"), "photo-L1")
+        let r = await converter(lib, url).convert([item])
+        #expect(r.failed[item.id] != nil && r.converted.isEmpty)
+        #expect(lib.createCount == 1 && lib.deleteCalls.isEmpty && lib.has(item.id))
+    }
+
+    @Test func unreadableOriginalIsKept() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1")
+        lib.add(item)
+        lib.digestUnavailable = true
+        let r = await converter(lib, url).convert([item])
+        #expect(r.failed[item.id] != nil && lib.createCount == 0 && lib.deleteCalls.isEmpty)
+    }
+
+    private func declinedThenRetry(_ tamper: (StillFakeLibrary, MediaID) -> Void) async throws -> (StillResult, StillFakeLibrary, MediaItem) {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1")
+        lib.add(item)
+        lib.userDeclinesDelete = true
+        let first = await converter(lib, url).convert([item])
+        let copy = try #require(first.keptBoth.first).copy
+        tamper(lib, copy)
+        lib.userDeclinesDelete = false
+        return (await converter(lib, url).convert([item]), lib, item)
+    }
+
+    @Test func stillEditedAfterDeclinedDeleteKeepsOriginal() async throws {
+        let (r, lib, item) = try await declinedThenRetry { $0.markEdited($1) }
+        #expect(r.failed[item.id] != nil && r.converted.isEmpty)
+        #expect(lib.has(item.id) && lib.deleteCalls.count == 1)
+    }
+
+    @Test func stillModifiedAfterDeclinedDeleteKeepsOriginal() async throws {
+        let (r, lib, item) = try await declinedThenRetry { $0.modify($1) }
+        #expect(r.failed[item.id] != nil && r.converted.isEmpty)
+        #expect(lib.has(item.id) && lib.deleteCalls.count == 1)
+    }
+
+    @Test func stillContentChangedAfterDeclinedDeleteKeepsOriginal() async throws {
+        let (r, lib, item) = try await declinedThenRetry { $0.setPhotoData($1, "replaced") }
+        #expect(r.failed[item.id] != nil && r.converted.isEmpty)
+        #expect(lib.has(item.id) && lib.deleteCalls.count == 1)
+    }
+
+    @Test func unknownCopySizeIsNotVerified() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = MediaItem(id: MediaID("L1"), kind: .livePhoto, creationDate: created, pixelWidth: 4032, pixelHeight: 3024,
+                             byteSize: nil, modificationDate: Date(timeIntervalSince1970: 5), pairedVideoBytes: 1)
+        lib.add(item)
+        let r = await converter(lib, url).convert([item])
+        #expect(r.converted.isEmpty && lib.deleteCalls.isEmpty && lib.has(item.id))
+    }
+
+    @Test func originalsWithoutDatesAreSkipped() async throws {
+        let lib = StillFakeLibrary(), url = journalURL()
+        let item = live("L1", dated: false)
+        lib.add(item)
+        let r = await converter(lib, url).convert([item])
+        #expect(r.skipped[item.id] != nil && lib.createCount == 0 && lib.deleteCalls.isEmpty)
     }
 }
 

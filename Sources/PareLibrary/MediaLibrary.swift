@@ -97,8 +97,12 @@ public protocol MediaLibrary: Sendable {
     /// Creates a still photo from a Live Photo's photo resource (downloading it if needed), carrying over date,
     /// location, favorite, hidden and albums, and returns the new asset's id. The original is not touched.
     func convertLivePhotoToStill(_ id: MediaID) async throws -> MediaID
-    /// A still created from `original` (same date and size, not a Live Photo) after `addedAfter`, ignoring `excluding`.
-    func findStillCopy(of original: MediaItem, addedAfter: Date, excluding: Set<MediaID>) async throws -> MediaID?
+    /// Every still that could have been created from `original` (same date and size, not a Live Photo) after
+    /// `addedAfter`, ignoring `excluding`. Callers must confirm content with `stillResourceDigest` before adopting one.
+    func stillCopyCandidates(of original: MediaItem, addedAfter: Date, excluding: Set<MediaID>) async throws -> [MediaID]
+    /// SHA-256 (hex) of the asset's original photo resource (the Live Photo's still half, or a still's photo),
+    /// downloading it if needed. nil when it can't be read; callers then treat the asset as unverified.
+    func stillResourceDigest(_ id: MediaID) async throws -> String?
 }
 
 public extension MediaLibrary {

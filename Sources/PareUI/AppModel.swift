@@ -158,6 +158,8 @@ public final class AppModel {
     @ObservationIgnored private var executionTask: Task<Void, Never>?
     @ObservationIgnored private var scopedFolder: URL?
     private var jobRows: [MediaID: JobRow] = [:]
+    /// Highest continued-processing progress reached per job; never decreases across retries.
+    @ObservationIgnored private var jobUnits: [MediaID: Int] = [:]
     private var jobOrder: [MediaID] = []
     private var workPaused = false
     @ObservationIgnored private var continued: ContinuedRun?
@@ -874,7 +876,7 @@ public final class AppModel {
             let activity = BackgroundActivity("Compressing videos")
             defer { activity.end() }
             let p = pipeline
-            let run = ContinuedRun(title: "Compressing videos", subtitle: "\(ids.count) to go", total: ids.count) {
+            let run = ContinuedRun(title: "Compressing videos", subtitle: "\(ids.count) to go", total: ids.count * ContinuedProgress.unitsPerJob) {
                 await p.pause()
             }
             continued = run
@@ -885,6 +887,7 @@ public final class AppModel {
             await pipeline.resume()
             let stream = pipeline.events()
             jobOrder = ids
+            jobUnits = [:]
             jobRows = Dictionary(uniqueKeysWithValues: ids.map { (id: MediaID) in (id, JobRow(id: id)) })
             workPaused = false
             publishWork()
@@ -1055,7 +1058,12 @@ public final class AppModel {
         let rows = jobOrder.compactMap { jobRows[$0] }
         let finished = rows.filter { [.copyReady, .skipped, .failed, .cancelled].contains($0.phase) }.count
         let active = rows.first { $0.phase == .working || $0.phase == .waiting || $0.phase == .retrying }
-        continued?.update(completed: finished, total: rows.count,
+        for row in rows {
+            let done = [.copyReady, .skipped, .failed, .cancelled].contains(row.phase)
+            jobUnits[row.id] = ContinuedProgress.advance(previous: jobUnits[row.id] ?? 0, step: row.step,
+                                                         fraction: row.fraction, finished: done)
+        }
+        continued?.update(completed: jobUnits.values.reduce(0, +), total: rows.count * ContinuedProgress.unitsPerJob,
                           subtitle: "\(min(finished + 1, rows.count)) of \(rows.count)" + (active.map { " · \($0.message)" } ?? ""))
         stage = .working(WorkProgress(
             title: workPaused ? "Paused" : "Pressing \(min(finished + 1, rows.count)) of \(rows.count)",
