@@ -1,22 +1,48 @@
 # PixelPare
 
-Mac + iOS app to shrink a Photos / iCloud Photos library: review similar & duplicate photos, and re-encode
-large videos to HEVC with three user-chosen levels. On-device, review-first, never auto-deletes.
+Mac + iOS app to shrink a Photos / iCloud Photos library: review lookalike photos, old screenshots and blurry
+shots, and make smaller HEVC copies of large videos at three user-chosen levels (Gentle / Balanced / Smaller
+resolution). On-device, review-first, never auto-deletes — an original video is only removed after its smaller
+copy is imported, verified and you approve.
 
-**Status:** investigation & UX mocks — no app code yet.
+**Status:** early development. Shared Swift package core + resilient video pipeline are in place; the SwiftUI
+apps (Pocket Workshop design) are being built.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `Sources/PareCore` | Models, grouping, cleanup plan, operation journal |
+| `Sources/PareVision` | Feature prints, blur / screenshot signals |
+| `Sources/PareLibrary` | `PhotoLibrary` (PhotoKit) and `FolderLibrary` (dev / tests) |
+| `Sources/PareTranscode` | HEVC transcoder, verifier, preview encoder, `EncoderGate` |
+| `Sources/PareEngine` | Resilient, resumable video pipeline (export → encode → verify → import → approve → remove) |
+| `Sources/PareUI` | Shared SwiftUI views and `AppModel` |
+| `Apps/iOS`, `Apps/macOS` | Thin app shells; `project.yml` (XcodeGen) |
+| `design/icon/` | App icon master `pixelpare-icon.svg`; `./make-icons.sh` builds the iOS/macOS icon sets |
+
+## Docs
 
 | File | What |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | Shared Swift Package core + SwiftUI Mac/iOS shells, PhotoKit/Vision/AVFoundation pipeline, risks, milestones |
-| [docs/research.md](docs/research.md) | Competitors, Apple API constraints, realistic savings (cited) |
-| [docs/brainstorm-sol.md](docs/brainstorm-sol.md) | Feature ranking, UX concept, monetization, names (GPT-6.1 Sol) |
-| [docs/mock-review-sol.md](docs/mock-review-sol.md) | Sol's critique of mocks v0.1 + architecture — most items applied in v0.2 |
-| [mocks/index.html](mocks/index.html) | Clickable-looking HTML mocks: Mac home, similar photos, videos, compare, progress/done, iPhone (open in a browser) |
-| [mocks/preview.png](mocks/preview.png) | Full-page render of the mocks |
-| [mocks/playful.html](mocks/playful.html) | v0.3 playful direction "Pocket Workshop" (workbench, light table, video press, receipt, iPhone, Calm mode) + alternates Pip and The Memory Edit |
-| [mocks/playful-preview.png](mocks/playful-preview.png) | Full-page render of the playful mocks |
-| [docs/playful-ux-sol.md](docs/playful-ux-sol.md) | Six creative directions, rankings, delight moments, Calm mode (Sol 6.1) |
-| [docs/feature-ideas.md](docs/feature-ideas.md) | Ranked cleanup modules: blurry, screen recordings, Live → still, bursts, RAW, etc. (v1 / v1.1 / later) |
-| [design/icon/](design/icon/) | App icon: `pixelpare-icon.svg` (master, edit this), `./make-icons.sh` → `build/` iOS + macOS `AppIcon` sets and `PixelPare.icns`; `icon-preview.png` |
+| [docs/architecture.md](docs/architecture.md) | Shared core + SwiftUI shells, PhotoKit / Vision / AVFoundation pipeline, risks |
+| [docs/implementation-plan.md](docs/implementation-plan.md) | Module contracts |
+| [docs/resilience.md](docs/resilience.md) | Video pipeline invariants, journal state machine, retries, recovery, fault-injection tests |
+| [docs/design.md](docs/design.md) | "Pocket Workshop" design direction, delight moments, Calm mode |
+| [docs/feature-ideas.md](docs/feature-ideas.md) | Ranked cleanup modules (v1 / v1.1 / later) |
+| [docs/research.md](docs/research.md) | Competitors, Apple API constraints, realistic savings |
+| [mocks/playful.html](mocks/playful.html) | Visual spec (open in a browser); `playful-*.png` renders |
 
-Next step: **M0 spike** — CLI over a folder: feature-print grouping + HEVC transcode at 3 presets, measured on ~50 real videos.
+## Build
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+swift build && swift test
+xcodegen generate   # then open PixelPare.xcodeproj
+```
+
+Set your `DEVELOPMENT_TEAM` in `project.yml` (or Xcode → Signing) to run on a device.
+
+> **Hardware encode tests are opt-in.** Running many VideoToolbox encodes in parallel from `swift test` has caused
+> kernel panics on macOS 27.0.1 (see `docs/resilience.md` §9). Fixtures use Motion-JPEG; the real HEVC suites run only
+> with `PIXELPARE_HW_ENCODE_TESTS=1 swift test --no-parallel --filter 'TranscoderTests|end to end'`.

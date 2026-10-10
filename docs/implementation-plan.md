@@ -112,13 +112,13 @@ public enum PreviewEncoder { static func sampleEstimate(input: URL, settings:, s
 // EncodeSettings width/height = track natural (unrotated) size; swapped automatically if given in display orientation of a 90° track; never upscaled.
 ```
 
-## UI (PareUI) — follow `mocks/index.html` v0.2
-`AppModel` (@Observable): access state, scan progress, categories (similar groups, videos, screenshots), CleanupPlan,
-job queue. Views: `HomeView` (hero "About X worth reviewing", category cards), `SimilarReviewView`
-(groups, suggested keeper, approve group ⏎, plan button), `VideosView` (3 preset cards, eligible list + skipped reasons,
-Review plan), `CompareView` (A/B slider on a frame from original vs preview encode), `PlanReviewView` (summary + over-quota
-warning + confirm), `ProgressView`, `DoneView` (honest copy). Mac: `NavigationSplitView` sidebar. iOS: `TabView`
-(Free Up / History / Settings) + stacks; similar review on iOS uses Mark / Unmark / Keep / Keep group buttons.
+## UI (PareUI) — follow `mocks/playful.html` ("Pocket Workshop", see `docs/design.md`)
+`AppModel` (@Observable): access state, scan progress, trays (lookalikes, videos, screenshots, blurry), CleanupPlan,
+job queue driven by PareEngine's `VideoPipeline`. Surfaces: **Workbench** (home: trays of found items on a bench,
+"about X worth a look"), **Light table** (lookalike groups; keeper is lit, extras slide off; approve per group),
+**Video press** (preset dial with three detents — Gentle / Balanced / Smaller resolution — A/B compare on a preview encode),
+**Receipt** (plan review before confirm, and the honest recap after), **Calm mode** (no animation / sound).
+Mac and iOS share the views; iOS uses a single stack with the bench as root.
 Sandbox entitlements: Photos (`com.apple.security.personal-information.photos-library`), user-selected read-only files.
 Info.plist: `NSPhotoLibraryUsageDescription`. Dev mode: `--folder <path>` launch arg / Settings toggle uses FolderLibrary.
 

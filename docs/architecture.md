@@ -1,6 +1,6 @@
 # PixelPare — Technical Investigation & Architecture (draft v0.2)
 
-> v0.2 folds in `mock-review-sol.md` (Sol 6.1 review) and `research.md`. Corrections are marked **[v0.2]**.
+> Folds in an earlier design review and `research.md`. Corrections from that review are marked **[v0.2]**.
 
 > Goal: free iCloud Photos space by (1) removing duplicate/similar photos and
 > (2) re-encoding videos at user-chosen quality levels — on-device, private, and safe.
