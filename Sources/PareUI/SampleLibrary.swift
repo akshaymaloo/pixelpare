@@ -14,12 +14,14 @@ public final class SampleLibrary: MediaLibrary {
         var out: [Spec] = []
         let day: TimeInterval = 86_400
         func add(_ id: String, kind: MediaKind = .photo, age: Double, seed: Int, brightness: Double = 0,
-                 hash: String? = nil, size: Int64 = 3_400_000, favorite: Bool = false, blur: Bool = false) {
+                 hash: String? = nil, size: Int64 = 3_400_000, favorite: Bool = false, blur: Bool = false,
+                 burst: String? = nil, pick: Bool? = nil, paired: Int64? = nil) {
             let item = MediaItem(id: MediaID(id), kind: kind,
                                  creationDate: now.addingTimeInterval(-age * day),
                                  pixelWidth: kind == .screenshot ? 1170 : 4032,
                                  pixelHeight: kind == .screenshot ? 2532 : 3024,
-                                 byteSize: size, isFavorite: favorite)
+                                 byteSize: size, isFavorite: favorite, burstID: burst,
+                                 burstPick: pick, pairedVideoBytes: paired)
             out.append(Spec(item: item, seed: seed, brightness: brightness, hash: hash, screenshot: kind == .screenshot, blur: blur))
         }
         for g in 0..<4 {
@@ -35,19 +37,37 @@ public final class SampleLibrary: MediaLibrary {
         for s in 0..<8 {
             add("Screenshot \(s).png", kind: .screenshot, age: Double(s < 6 ? 45 + s * 10 : 5), seed: 90 + s, size: 900_000)
         }
+        for b in 0..<2 {
+            for f in 0..<4 {
+                add("burst\(b)-\(f).jpg", age: Double(9 + b * 20) + Double(f) * 0.00001, seed: 200 + b * 10 + f * 3,
+                    size: 2_800_000, favorite: b == 1 && f == 3, burst: "burst\(b)", pick: f == 1)
+            }
+        }
+        for s in 0..<6 {
+            add("Live \(s).heic", kind: .livePhoto, age: Double(2 + s * 11), seed: 260 + s * 4, size: 2_400_000,
+                favorite: s == 4, paired: 2_100_000 + Int64(s) * 450_000)
+        }
+        for s in 0..<2 { add("ProRAW \(s).dng", age: Double(30 + s * 40), seed: 300 + s * 7, size: 26_000_000 + Int64(s) * 9_000_000) }
         let gb: Int64 = 1_000_000_000
         func video(_ id: String, w: Int, h: Int, fps: Double, codec: String, bytes: Int64, secs: Double,
-                   local: Bool = true, hdr: Bool = false, seed: Int, age: Double) {
+                   local: Bool = true, hdr: Bool = false, seed: Int, age: Double,
+                   recording: Bool = false, favorite: Bool = false) {
             out.append(Spec(item: MediaItem(id: MediaID(id), kind: .video,
                                             creationDate: now.addingTimeInterval(-age * day),
-                                            pixelWidth: w, pixelHeight: h, byteSize: bytes, isLocal: local,
-                                            duration: secs, videoCodec: codec, frameRate: fps, isHDR: hdr),
+                                            pixelWidth: w, pixelHeight: h, byteSize: bytes, isFavorite: favorite,
+                                            isLocal: local, duration: secs, videoCodec: codec, frameRate: fps,
+                                            isHDR: hdr, isScreenRecording: recording),
                             seed: seed, brightness: 0, hash: nil, screenshot: false))
         }
         video("Beach day.mov", w: 3840, h: 2160, fps: 60, codec: "avc1", bytes: 38 * gb / 10, secs: 724, seed: 70, age: 20)
         video("Road trip.mov", w: 3840, h: 2160, fps: 30, codec: "hvc1", bytes: 19 * gb / 10, secs: 312, local: false, seed: 71, age: 40)
         video("Concert.mov", w: 1920, h: 1080, fps: 30, codec: "hvc1", bytes: 60_000_000, secs: 150, seed: 72, age: 60)
         video("Ski run.mov", w: 3840, h: 2160, fps: 30, codec: "hvc1", bytes: 6 * gb / 10, secs: 45, hdr: true, seed: 73, age: 80)
+        video("ScreenRecording 1.mov", w: 1179, h: 2556, fps: 60, codec: "hvc1", bytes: 210_000_000, secs: 190, seed: 80, age: 50, recording: true)
+        video("ScreenRecording 2.mov", w: 1179, h: 2556, fps: 60, codec: "hvc1", bytes: 96_000_000, secs: 85, seed: 81, age: 75, recording: true)
+        video("ScreenRecording 3.mov", w: 1179, h: 2556, fps: 60, codec: "hvc1", bytes: 41_000_000, secs: 30, seed: 82, age: 120, recording: true)
+        video("ScreenRecording 4.mov", w: 1179, h: 2556, fps: 60, codec: "hvc1", bytes: 64_000_000, secs: 52, seed: 83, age: 4, recording: true)
+        video("ScreenRecording 5.mov", w: 1179, h: 2556, fps: 60, codec: "hvc1", bytes: 58_000_000, secs: 48, seed: 84, age: 90, recording: true, favorite: true)
         specs = Mutex(out)
     }
 
@@ -73,6 +93,22 @@ public final class SampleLibrary: MediaLibrary {
 
     public func importVideo(_ file: URL, preserving original: MediaItem) async throws -> MediaID {
         throw LibraryError.importFailed("Sample library is read-only")
+    }
+
+    public func convertLivePhotoToStill(_ id: MediaID) async throws -> MediaID {
+        try specs.withLock { specs in
+            guard let i = specs.firstIndex(where: { $0.item.id == id }), specs[i].item.kind == .livePhoto else {
+                throw LibraryError.notFound(id.raw)
+            }
+            let o = specs[i].item
+            let newID = MediaID(id.raw + " (still)")
+            var spec = specs[i]
+            spec.item = MediaItem(id: newID, kind: .photo, creationDate: o.creationDate, pixelWidth: o.pixelWidth,
+                                  pixelHeight: o.pixelHeight, byteSize: o.byteSize, isFavorite: o.isFavorite,
+                                  modificationDate: Date())
+            if !specs.contains(where: { $0.item.id == newID }) { specs.append(spec) }
+            return newID
+        }
     }
 
     public func delete(_ ids: [MediaID]) async throws {

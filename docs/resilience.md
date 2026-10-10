@@ -132,3 +132,13 @@ must not trigger it:
 - Follow-up: file Feedback with `/Library/Logs/DiagnosticReports/panic-full-2026-10-09-144519.0002.panic`. If
   panics recur in the app, expose `Transcoder.softwareEncoderOnly` as a setting or a final fallback rung. It is
   much slower than hardware (a Gentle pass over ~37 s of 1080p took ~2.5 min on an M3) but proven above.
+
+## 10. Live Photo → still (StillConverter)
+
+Separate journal (`stills*.json`) so video recovery never sees it. States: `importing` → `imported` →
+`awaitingRemovalApproval` → `removing` → `removed`. Rules: the original is deleted only after the still exists, is a
+non-live photo with the same pixel size and favorite flag, and the original's `modificationDate` is unchanged. On
+resume, a recorded copy is reused; in `importing` a tight fingerprint (date within 50 ms, size, dimensions) adopts an
+orphaned still instead of creating a duplicate. A declined delete keeps both and the next run only deletes. A vanished
+copy is recreated. Whether the original is gone is decided by the library, not by the error. Tests:
+`StillConverterTests`.

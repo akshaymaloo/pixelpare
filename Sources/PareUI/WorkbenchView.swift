@@ -118,6 +118,10 @@ struct WorkbenchView: View {
             VideoPressTray()
             ScreenshotTray()
             BlurryTray()
+            RecordingsTray()
+            BiggestTray()
+            BurstTray()
+            LiveTray()
             GaugeCard()
         }
     }
@@ -275,6 +279,87 @@ private struct BlurryTray: View {
                 }
             }
         }
+    }
+}
+
+/// The shared look of the simple "bundle + blurb + button" trays.
+private struct BundleTray: View {
+    let label: String
+    let trailing: String
+    let title: String
+    let emptyText: String
+    let ids: [MediaID]
+    let text: String
+    let button: String
+    let destination: Destination
+    let identifier: String
+    var tied = false
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        TrayShell(label: label, trailing: trailing) {
+            if ids.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    trayTitle(title)
+                    Text(emptyText).font(.callout).foregroundStyle(Workshop.ink2)
+                }.frame(minHeight: 100, alignment: .leading)
+            } else {
+                HStack(spacing: 16) {
+                    BundleStack(ids: Array(ids.prefix(3)), tied: tied)
+                    VStack(alignment: .leading, spacing: 6) {
+                        trayTitle(title)
+                        Text(text).font(.footnote).foregroundStyle(Workshop.ink2)
+                        Button(button) { model.path.append(destination) }.buttonStyle(.chunkyPlain)
+                            .accessibilityIdentifier(identifier)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct RecordingsTray: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        let ids = model.screenRecordingIDs
+        BundleTray(label: "Module 05 · Screen recordings", trailing: "Videos", title: "Screen recordings",
+                   emptyText: "No screen recordings older than 30 days.", ids: ids,
+                   text: "\(Format.count(ids.count, "old screen recording")), about \(Format.range(model.recordingOpportunity)). Long and easy to forget. You pick which go.",
+                   button: "See recordings", destination: .recordings, identifier: "tray-recordings")
+    }
+}
+
+private struct BiggestTray: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        let ids = model.biggestIDs
+        BundleTray(label: "Module 06 · Biggest things", trailing: "Everything", title: "Biggest things",
+                   emptyText: "Nothing is big enough to stand out.", ids: ids,
+                   text: "The \(ids.count) largest items, \(Format.bytes(model.biggestBytes)) together. Press a video or mark what you don't need.",
+                   button: "Weigh them", destination: .biggest, identifier: "tray-biggest")
+    }
+}
+
+private struct BurstTray: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        let groups = model.burstGroups
+        let ids = groups.compactMap(\.picks.first)
+        BundleTray(label: "Module 07 · Burst leftovers", trailing: "Photos", title: "Burst leftovers",
+                   emptyText: "No bursts with unpicked frames.", ids: ids,
+                   text: "\(Format.count(model.burstLeftoverIDs.count, "extra frame")) in \(Format.count(groups.count, "burst")), about \(Format.range(model.burstOpportunity)). Your picks stay.",
+                   button: "Sort the bursts", destination: .bursts, identifier: "tray-bursts", tied: true)
+    }
+}
+
+private struct LiveTray: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        let ids = model.livePhotoIDs
+        BundleTray(label: "Module 08 · Live Photos", trailing: "Photos", title: "Live Photos to stills",
+                   emptyText: "No Live Photos to convert.", ids: ids,
+                   text: "\(Format.count(ids.count, "Live Photo")) could shed their motion clip, about \(Format.range(model.liveOpportunity)). The still is verified first; the motion is lost.",
+                   button: "Make stills", destination: .livePhotos, identifier: "tray-live")
     }
 }
 

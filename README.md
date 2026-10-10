@@ -20,6 +20,10 @@ An original video is only removed after its smaller copy has been imported, veri
 | **Lookalikes** (light table) | Groups exact copies, near-identical and similar shots, then suggests a keeper with reasons ("Sharper", …). You approve each group. |
 | **Video press** | Makes HEVC copies at Gentle / Balanced / Smaller resolution (≤ 1080p). Shows estimates and an A/B preview, then imports the copy with its date, location, favorite and albums kept. The original is removed only after you approve. |
 | **Old screenshots** | Screenshots older than 30 days. |
+| **Screen recordings** | Screen recordings older than 30 days, biggest first. Removal needs your explicit pick; favorites are never offered. |
+| **Biggest things** | The 50 largest photos and videos over 10 MB. Send a video to the press, or mark any item for removal. |
+| **Burst leftovers** | Frames that are not the burst pick (user or auto pick). Picks and favorites are always kept. |
+| **Live Photos → stills** | Makes a still copy (date, location, favorite, albums kept), checks it, then removes the original. Saves the paired video. Edited, loop, bounce and long-exposure Live Photos are skipped. |
 | **Blurry shots** | Photos with low sharpness, shown as "probably blurry". Nothing is pre-marked. |
 | **Receipt** | Reviews the plan before anything happens, then gives an honest recap afterwards. |
 
@@ -75,14 +79,17 @@ stay in the list and are skipped after downloading.
 Developer launch arguments (Xcode → Scheme → Arguments):
 - `--sample`: a built-in fake library that never touches Photos.
 - `--folder <path>`: use a folder instead of Photos.
-- `--screen lighttable|press|screenshots|blurry|receipt`: open that screen first.
+- `--screen lighttable|press|screenshots|blurry|recordings|biggest|bursts|live|receipt`: open that screen first.
 
 ## Known limitations
 
 - **Background:** runs continue via `BGContinuedProcessingTask`, but the system may expire them; progress is kept
   and resumes next launch. Not available in the simulator.
-- **Not built yet:** screen-recordings tray, biggest-items view, Live Photo → still, burst leftovers. See
-  [docs/feature-ideas.md](docs/feature-ideas.md).
+- **Live Photo → still** keeps the same caveats as the video press (captions, People tags and shared albums are not
+  copied). A crash between creating the still and removing the original never loses the original; the next run
+  adopts the existing still instead of making a second one. If you decline the delete, both stay.
+- **Bursts and Live Photo pairing** rely on PhotoKit behaviour that is only exercised on a real library, not in tests.
+- **Not built yet:** see [docs/feature-ideas.md](docs/feature-ideas.md).
 - **HDR videos** are never re-encoded (risk of losing Dolby Vision metadata).
 - **Not transferable:** captions, People tags and shared-album membership can't be copied to a new video through
   Apple's public API.

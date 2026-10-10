@@ -131,6 +131,16 @@ Info.plist: `NSPhotoLibraryUsageDescription`. Dev mode: `--folder <path>` launch
 5. Resilient `PareEngine` pipeline (docs/resilience.md), Pocket Workshop UI rebuild, iOS gestures, UI tests,
    real-clip compression tests.
 
+## Trays added after v1
+
+- `TrayRules.swift` (PareCore): `ScreenRecordingRule`, `BiggestRule`, `BurstRule`, `LivePhotoRule`. `MediaItem` gained
+  `isScreenRecording`, `burstPick`, `pairedVideoBytes` (decoded with `decodeIfPresent`).
+- `CleanupPlan.stillJobs`; `SafetyCheck.validate(approvedVideoRemovals:)` allows a video removal only when it is
+  also explicitly approved; favorites stay protected.
+- `StillConverter` (PareEngine) with its own journal, `MediaLibrary.convertLivePhotoToStill` / `findStillCopy`.
+- `ScanEngine` drops burst leftovers (`burstPick == false`) before grouping and blur analysis.
+- Destinations `recordings|biggest|bursts|livePhotos`; launch `--screen recordings|biggest|bursts|live`.
+
 ## Safety invariants (tests must cover)
 - No removal without `Approval.approved`; favorites never in removals; every group keeps ≥ 1.
 - Original video deleted only when journal state is `importVerified` and user approved removal.

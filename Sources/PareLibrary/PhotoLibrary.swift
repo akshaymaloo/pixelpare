@@ -59,9 +59,16 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
     private func replaceCache(_ c: [String: PHAsset]) { lock.lock(); cache = c; lock.unlock() }
     private func evict(_ keys: [String]) { lock.lock(); for k in keys { cache[k] = nil }; lock.unlock() }
 
+    /// Lookups by id must also see non-representative burst frames, which PhotoKit hides by default.
+    private static var lookupOptions: PHFetchOptions {
+        let o = PHFetchOptions()
+        o.includeAllBurstAssets = true
+        return o
+    }
+
     private func asset(_ id: MediaID) throws -> PHAsset {
         if let a = cached(id.raw) { return a }
-        let r = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: nil)
+        let r = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: Self.lookupOptions)
         guard let a = r.firstObject else { throw LibraryError.notFound(id.raw) }
         store(id.raw, a)
         return a
@@ -77,6 +84,8 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
     public func items() async throws -> [MediaItem] {
         let opts = PHFetchOptions()
         opts.includeHiddenAssets = false
+        // Without this PhotoKit hides every non-representative burst frame.
+        opts.includeAllBurstAssets = true
         opts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         opts.predicate = NSPredicate(
             format: "mediaType == %d OR mediaType == %d",
@@ -113,6 +122,16 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
         else if a.mediaSubtypes.contains(.photoLive) { kind = .livePhoto }
         else { kind = .photo }
         let isVideo = a.mediaType == .video
+        var burstPick: Bool?
+        if a.burstIdentifier != nil {
+            burstPick = !a.burstSelectionTypes.isDisjoint(with: [.userPick, .autoPick])
+        }
+        // Loop / bounce / long-exposure Live Photos aren't offered: turning them into stills loses the effect.
+        var pairedBytes: Int64?
+        if kind == .livePhoto, !edited, a.playbackStyle == .livePhoto,
+           let n = resources.first(where: { $0.type == .pairedVideo })?.value(forKey: "fileSize") as? NSNumber {
+            pairedBytes = n.int64Value
+        }
         return MediaItem(
             id: MediaID(a.localIdentifier), kind: kind, creationDate: a.creationDate,
             pixelWidth: a.pixelWidth, pixelHeight: a.pixelHeight, byteSize: size,
@@ -120,12 +139,14 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
             burstID: a.burstIdentifier, duration: isVideo ? a.duration : nil,
             videoCodec: nil, frameRate: nil, isHDR: false,
             isSlowMo: isVideo && a.mediaSubtypes.contains(.videoHighFrameRate),
-            modificationDate: a.modificationDate)
+            modificationDate: a.modificationDate,
+            isScreenRecording: isVideo && a.mediaSubtypes.contains(.videoScreenRecording),
+            burstPick: burstPick, pairedVideoBytes: pairedBytes)
     }
 
     public func item(_ id: MediaID) async throws -> MediaItem? {
         // Always a fresh fetch: a cached PHAsset can outlive the asset it points at.
-        guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: nil).firstObject else {
+        guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: Self.lookupOptions).firstObject else {
             evict([id.raw])
             return nil
         }
@@ -153,7 +174,7 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
     private struct AssetBox: @unchecked Sendable { let asset: AVAsset }
 
     public func resourceSize(_ id: MediaID) async -> Int64? {
-        guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: nil).firstObject,
+        guard let a = PHAsset.fetchAssets(withLocalIdentifiers: [id.raw], options: Self.lookupOptions).firstObject,
               let res = originalVideoResource(a) ?? PHAssetResource.assetResources(for: a).first,
               let n = res.value(forKey: "fileSize") as? NSNumber else { return nil }
         return n.int64Value
@@ -333,21 +354,28 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
 
     // MARK: Import / delete
 
-    public func importVideo(_ file: URL, preserving original: MediaItem) async throws -> MediaID {
-        let source = try asset(original.id)
+    private func regularAlbums(containing source: PHAsset) -> [PHAssetCollection] {
         let albums = PHAssetCollection.fetchAssetCollectionsContaining(source, with: .album, options: nil)
         var regular: [PHAssetCollection] = []
         albums.enumerateObjects { c, _, _ in
             if c.assetCollectionSubtype == .albumRegular { regular.append(c) }
         }
+        return regular
+    }
+
+    /// Creates a new asset from `resource` and carries over date, location, favorite, hidden and album membership.
+    private func createAsset(_ resource: PHAssetResourceType, file: URL, preserving source: PHAsset,
+                             filename: String? = nil, uti: String? = nil) async throws -> MediaID {
         let created = Box<String?>(nil)
-        let work = UncheckedSendable((source, regular))
+        let work = UncheckedSendable((source, regularAlbums(containing: source)))
         try await PHPhotoLibrary.shared().performChanges {
             let (source, albums) = work.value
             let req = PHAssetCreationRequest.forAsset()
             let opts = PHAssetResourceCreationOptions()
             opts.shouldMoveFile = false
-            req.addResource(with: .video, fileURL: file, options: opts)
+            if let filename { opts.originalFilename = filename }
+            if let uti { opts.uniformTypeIdentifier = uti }
+            req.addResource(with: resource, fileURL: file, options: opts)
             req.creationDate = source.creationDate
             req.location = source.location
             req.isFavorite = source.isFavorite
@@ -362,10 +390,88 @@ public final class PhotoLibrary: MediaLibrary, @unchecked Sendable {
         return MediaID(newID)
     }
 
+    public func importVideo(_ file: URL, preserving original: MediaItem) async throws -> MediaID {
+        try await createAsset(.video, file: file, preserving: try asset(original.id))
+    }
+
+    // MARK: Live Photo → still
+
+    public func convertLivePhotoToStill(_ id: MediaID) async throws -> MediaID {
+        try Task.checkCancellation()
+        let source = try asset(id)
+        let resources = PHAssetResource.assetResources(for: source)
+        // Edited Live Photos are never converted: the new asset would bake in or lose the edit.
+        guard source.mediaSubtypes.contains(.photoLive),
+              !resources.contains(where: { $0.type == .adjustmentData || $0.type == .fullSizePhoto }),
+              let photo = resources.first(where: { $0.type == .photo }) else {
+            throw LibraryError.exportFailed("No unedited photo resource to copy")
+        }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("pixelpare-still-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let name = photo.originalFilename.isEmpty ? "photo.heic" : photo.originalFilename
+        let file = dir.appendingPathComponent(name)
+        try await write(photo, to: file, allowNetwork: true)
+        try Task.checkCancellation()
+        return try await createAsset(.photo, file: file, preserving: source, filename: name,
+                                     uti: photo.uniformTypeIdentifier)
+    }
+
+    /// Writes one resource to `dest` (via a `.partial` file), downloading from iCloud if needed.
+    private func write(_ resource: PHAssetResource, to dest: URL, allowNetwork: Bool) async throws {
+        let fm = FileManager.default
+        let partial = dest.appendingPathExtension("partial")
+        try? fm.removeItem(at: partial)
+        guard fm.createFile(atPath: partial.path, contents: nil) else { throw CocoaError(.fileWriteUnknown) }
+        let transfer = DataTransfer(handle: try FileHandle(forWritingTo: partial))
+        let opts = PHAssetResourceRequestOptions()
+        opts.isNetworkAccessAllowed = allowNetwork
+        do {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    let manager = PHAssetResourceManager.default()
+                    let request = manager.requestData(
+                        for: resource, options: opts,
+                        dataReceivedHandler: { transfer.write($0) },
+                        completionHandler: { cont.resume(with: transfer.finish($0)) })
+                    transfer.attach(request, manager)
+                }
+            } onCancel: { transfer.cancel() }
+            let size = (try? fm.attributesOfItem(atPath: partial.path)[.size] as? NSNumber)?.int64Value ?? 0
+            guard size > 0 else { throw LibraryError.exportFailed("The exported file is empty") }
+            try? fm.removeItem(at: dest)
+            try fm.moveItem(at: partial, to: dest)
+        } catch {
+            try? fm.removeItem(at: partial)
+            throw error
+        }
+    }
+
+    public func findStillCopy(of original: MediaItem, addedAfter: Date,
+                              excluding: Set<MediaID>) async throws -> MediaID? {
+        guard let created = original.creationDate else { return nil }
+        let fingerprint = StillFingerprint(of: original)
+        let opts = PHFetchOptions()
+        opts.includeHiddenAssets = true
+        opts.includeAllBurstAssets = true
+        opts.predicate = NSPredicate(
+            format: "mediaType == %d AND creationDate >= %@ AND creationDate <= %@",
+            PHAssetMediaType.image.rawValue,
+            created.addingTimeInterval(-1) as NSDate, created.addingTimeInterval(1) as NSDate)
+        var found: MediaID?
+        PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, stop in
+            let id = MediaID(a.localIdentifier)
+            guard !excluding.contains(id), fingerprint.matches(Self.mediaItem(a)) else { return }
+            if let m = a.modificationDate, m < addedAfter.addingTimeInterval(-3600) { return }
+            found = id; stop.pointee = true
+        }
+        return found
+    }
+
     public func delete(_ ids: [MediaID]) async throws {
         // Already-missing ids are skipped. A declined system prompt surfaces as PHPhotosError.userCancelled.
         var assets: [PHAsset] = []
-        PHAsset.fetchAssets(withLocalIdentifiers: ids.map(\.raw), options: nil)
+        PHAsset.fetchAssets(withLocalIdentifiers: ids.map(\.raw), options: Self.lookupOptions)
             .enumerateObjects { a, _, _ in assets.append(a) }
         guard !assets.isEmpty else { evict(ids.map(\.raw)); return }
         let work = UncheckedSendable(assets)

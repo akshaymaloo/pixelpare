@@ -27,6 +27,12 @@ public struct MediaItem: Identifiable, Hashable, Codable, Sendable {
     public var isSlowMo: Bool
     /// Last modification of the asset; changes when the user edits the original.
     public var modificationDate: Date?
+    /// A screen recording (PhotoKit `.videoScreenRecording`).
+    public var isScreenRecording: Bool
+    /// nil = not part of a burst; true = the burst's user/auto pick; false = a frame the user never picked.
+    public var burstPick: Bool?
+    /// Size of a Live Photo's paired video; only set when it can safely be dropped (nil = unknown or not offered).
+    public var pairedVideoBytes: Int64?
 
     public init(
         id: MediaID, kind: MediaKind = .photo, creationDate: Date? = nil,
@@ -34,7 +40,8 @@ public struct MediaItem: Identifiable, Hashable, Codable, Sendable {
         isFavorite: Bool = false, isEdited: Bool = false, isLocal: Bool = true,
         burstID: String? = nil, duration: TimeInterval? = nil, videoCodec: String? = nil,
         frameRate: Double? = nil, isHDR: Bool = false, isSlowMo: Bool = false,
-        modificationDate: Date? = nil
+        modificationDate: Date? = nil, isScreenRecording: Bool = false, burstPick: Bool? = nil,
+        pairedVideoBytes: Int64? = nil
     ) {
         self.id = id; self.kind = kind; self.creationDate = creationDate
         self.pixelWidth = pixelWidth; self.pixelHeight = pixelHeight; self.byteSize = byteSize
@@ -42,6 +49,37 @@ public struct MediaItem: Identifiable, Hashable, Codable, Sendable {
         self.burstID = burstID; self.duration = duration; self.videoCodec = videoCodec
         self.frameRate = frameRate; self.isHDR = isHDR; self.isSlowMo = isSlowMo
         self.modificationDate = modificationDate
+        self.isScreenRecording = isScreenRecording; self.burstPick = burstPick; self.pairedVideoBytes = pairedVideoBytes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, creationDate, pixelWidth, pixelHeight, byteSize, isFavorite, isEdited, isLocal, burstID
+        case duration, videoCodec, frameRate, isHDR, isSlowMo, modificationDate
+        case isScreenRecording, burstPick, pairedVideoBytes
+    }
+
+    /// Fields added after v1 decode as absent-is-default so older caches keep loading.
+    public init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        id = try c.decode(MediaID.self, forKey: .id)
+        kind = try c.decode(MediaKind.self, forKey: .kind)
+        creationDate = try c.decodeIfPresent(Date.self, forKey: .creationDate)
+        pixelWidth = try c.decode(Int.self, forKey: .pixelWidth)
+        pixelHeight = try c.decode(Int.self, forKey: .pixelHeight)
+        byteSize = try c.decodeIfPresent(Int64.self, forKey: .byteSize)
+        isFavorite = try c.decode(Bool.self, forKey: .isFavorite)
+        isEdited = try c.decode(Bool.self, forKey: .isEdited)
+        isLocal = try c.decode(Bool.self, forKey: .isLocal)
+        burstID = try c.decodeIfPresent(String.self, forKey: .burstID)
+        duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
+        videoCodec = try c.decodeIfPresent(String.self, forKey: .videoCodec)
+        frameRate = try c.decodeIfPresent(Double.self, forKey: .frameRate)
+        isHDR = try c.decode(Bool.self, forKey: .isHDR)
+        isSlowMo = try c.decode(Bool.self, forKey: .isSlowMo)
+        modificationDate = try c.decodeIfPresent(Date.self, forKey: .modificationDate)
+        isScreenRecording = try c.decodeIfPresent(Bool.self, forKey: .isScreenRecording) ?? false
+        burstPick = try c.decodeIfPresent(Bool.self, forKey: .burstPick)
+        pairedVideoBytes = try c.decodeIfPresent(Int64.self, forKey: .pairedVideoBytes)
     }
 
     public var pixelCount: Int { pixelWidth * pixelHeight }

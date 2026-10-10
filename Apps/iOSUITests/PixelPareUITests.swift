@@ -54,7 +54,8 @@ final class PixelPareUITests: XCTestCase {
         snap("01-workbench-top")
         // Silk() uppercases its text, so match case-insensitively.
         let trayLabels = ["Module 01 · Lookalike tray", "Module 02 · Video press", "Module 03 · Old screenshots",
-                          "Module 04 · Blurry shots", "Gauge · Honest estimate"]
+                          "Module 04 · Blurry shots", "Module 05 · Screen recordings", "Module 06 · Biggest things",
+                          "Module 07 · Burst leftovers", "Module 08 · Live Photos", "Gauge · Honest estimate"]
         for (i, label) in trayLabels.enumerated() {
             let element = app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", label)).firstMatch
             let found = scrollUntilVisible(element)
@@ -152,6 +153,23 @@ final class PixelPareUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 1)
         snap("21-blurry")
     }
+
+    // MARK: New trays: open with --screen, mark something, expect the plan bar
+
+    private func assertTrayMarks(screen: String, button: String, snapName: String) {
+        launch(screen: screen)
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 20))
+        let target = app.buttons.matching(identifier: button).firstMatch
+        XCTAssertTrue(target.waitForExistence(timeout: 20), "\(button) missing on \(screen)")
+        target.tap()
+        XCTAssertTrue(app.buttons["Review receipt"].waitForExistence(timeout: 10), "Plan bar missing after marking on \(screen)")
+        snap(snapName)
+    }
+
+    func testRecordingsTrayMarkAll() throws { assertTrayMarks(screen: "recordings", button: "recordings-mark-all", snapName: "22-recordings") }
+    func testBiggestTrayMark() throws { assertTrayMarks(screen: "biggest", button: "biggest-mark", snapName: "23-biggest") }
+    func testBurstsTrayApprove() throws { assertTrayMarks(screen: "bursts", button: "burst-approve", snapName: "24-bursts") }
+    func testLivePhotosTrayMarkAll() throws { assertTrayMarks(screen: "live", button: "live-mark-all", snapName: "25-live") }
 
     // MARK: Video press (presets and dial only)
 

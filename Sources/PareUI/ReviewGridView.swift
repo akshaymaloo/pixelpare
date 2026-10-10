@@ -18,6 +18,12 @@ struct ReviewGridView: View {
     let toggle: (MediaID) -> Void
     let selectAll: () -> Void
     let clear: () -> Void
+    /// Optional small label on each card (size, duration…).
+    var badge: ((MediaID) -> String?)?
+    var idPrefix = "review"
+    var markedValue = "Marked for removal"
+    var cardHint = "Toggles the mark. Nothing is removed until you confirm the receipt."
+    var header: AnyView?
 
     private var compact: Bool { sizeClass == .compact }
 
@@ -29,10 +35,12 @@ struct ReviewGridView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(blurb).font(.callout).foregroundStyle(Workshop.ink2)
+                        header
                         HStack {
                             Silk("\(selected.count) of \(ids.count) marked")
                             Spacer()
                             Button("Mark all") { selectAll() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                                .accessibilityIdentifier("\(idPrefix)-mark-all")
                                 .disabled(ids.isEmpty || ids.allSatisfy(selected.contains))
                             Button("Clear") { clear() }.buttonStyle(.chunkyPlain).controlSize(.small).disabled(selected.isEmpty)
                         }
@@ -75,6 +83,13 @@ struct ReviewGridView: View {
                             .padding(5).background(Circle().fill(Workshop.amber)).offset(x: 4, y: -4)
                     }
                 }
+                .overlay(alignment: .bottomLeading) {
+                    if let text = badge?(id) {
+                        Text(text).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(Workshop.ink.opacity(0.78))).padding(8)
+                    }
+                }
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Workshop.amber, lineWidth: marked ? 3 : 0))
                 .opacity(marked ? 0.85 : 1)
                 .settle(value: marked)
@@ -83,8 +98,9 @@ struct ReviewGridView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(model.title(for: id)), \(Format.bytes(model.items[id]?.byteSize ?? 0))")
-        .accessibilityValue(marked ? "Marked for removal" : "Not marked")
-        .accessibilityHint("Toggles the mark. Nothing is removed until you confirm the receipt.")
+        .accessibilityIdentifier("\(idPrefix)-card")
+        .accessibilityValue(marked ? markedValue : "Not marked")
+        .accessibilityHint(cardHint)
     }
 }
 
@@ -122,6 +138,51 @@ struct BlurryView: View {
             symbol: "camera.metering.unknown", ids: model.blurryIDs, selected: model.selectedBlurry,
             toggle: { model.toggleBlurry($0) }, selectAll: { model.selectAllBlurry() },
             clear: { model.clearBlurry() })
+    }
+}
+
+struct RecordingsView: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        ReviewGridView(
+            title: "Screen recordings",
+            blurb: "Screen recordings older than 30 days, biggest first. They're often long and forgotten. Mark only the ones you're sure about; they go to Recently Deleted. Favorites never appear here.",
+            emptyTitle: "No old screen recordings", emptyMessage: "No screen recordings older than 30 days were found.",
+            symbol: "record.circle", ids: model.screenRecordingIDs, selected: model.selectedRecordings,
+            toggle: { model.toggleRecording($0) }, selectAll: { model.selectAllRecordings() },
+            clear: { model.clearRecordings() },
+            badge: { id in
+                guard let item = model.items[id] else { return nil }
+                return [item.byteSize.map(Format.bytes), item.duration.map(Format.duration)].compactMap { $0 }.joined(separator: " · ")
+            },
+            idPrefix: "recordings")
+    }
+}
+
+struct LivePhotosView: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        let unfinished = model.unfinishedStillIDs.intersection(model.livePhotoIDs)
+        ReviewGridView(
+            title: "Live Photos",
+            blurb: "Make a still photo from a Live Photo and drop its motion clip (about 2–4 MB each). The still keeps the date, location, favorite mark and albums, but the motion and sound are gone, along with any Loop, Bounce or Long Exposure effect. The Live Photo goes to Recently Deleted only after the still is verified. Edited Live Photos aren't offered.",
+            emptyTitle: "No Live Photos to convert", emptyMessage: "No unedited Live Photos were found.",
+            symbol: "livephoto", ids: model.livePhotoIDs, selected: model.selectedStills,
+            toggle: { model.toggleStill($0) }, selectAll: { model.selectAllStills() },
+            clear: { model.clearStills() },
+            badge: { id in
+                guard let item = model.items[id] else { return nil }
+                let saves = item.pairedVideoBytes.map { "−" + Format.bytes($0) } ?? ""
+                return item.isFavorite ? "♥ " + saves : saves
+            },
+            idPrefix: "live", markedValue: "Marked to make a still",
+            cardHint: "Toggles the mark. Nothing changes until you confirm the receipt.",
+            header: unfinished.isEmpty ? nil : AnyView(
+                HStack {
+                    Banner(symbol: "arrow.triangle.2.circlepath",
+                           text: "\(Format.count(unfinished.count, "conversion")) didn't finish last time. Finishing reuses the still that was already made.")
+                    Button("Mark them") { model.selectUnfinishedStills() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                }))
     }
 }
 
