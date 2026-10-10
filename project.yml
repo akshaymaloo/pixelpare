@@ -1,0 +1,91 @@
+name: PixelPare
+
+options:
+  bundleIdPrefix: com.akshaymaloo
+  deploymentTarget:
+    macOS: "26.0"
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Fill in your Apple developer team ID (or set it in Xcode's Signing & Capabilities) to run on device / archive.
+    DEVELOPMENT_TEAM: ""
+    GENERATE_INFOPLIST_FILE: NO
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+
+packages:
+  PixelPare:
+    path: .
+
+targets:
+  PixelPare-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: Apps/macOS
+        excludes: ["Info.plist"]
+    dependencies:
+      - package: PixelPare
+        product: PareUI
+    info:
+      path: Apps/macOS/Info.plist
+      properties:
+        CFBundleDisplayName: PixelPare
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.photography
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSPhotoLibraryUsageDescription: PixelPare looks at your photos and videos to find similar shots, old screenshots and large videos. Nothing is removed until you approve it.
+        NSPhotoLibraryAddUsageDescription: PixelPare adds smaller copies of videos you choose to compress to your library.
+    entitlements:
+      path: Apps/macOS/PixelPare.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.personal-information.photos-library: true
+        com.apple.security.files.user-selected.read-write: true
+    settings:
+      base:
+        PRODUCT_NAME: PixelPare
+        PRODUCT_BUNDLE_IDENTIFIER: com.akshaymaloo.pixelpare
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  PixelPare-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/iOS
+        excludes: ["Info.plist"]
+    dependencies:
+      - package: PixelPare
+        product: PareUI
+    info:
+      path: Apps/iOS/Info.plist
+      properties:
+        CFBundleDisplayName: PixelPare
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSPhotoLibraryUsageDescription: PixelPare looks at your photos and videos to find similar shots, old screenshots and large videos. Nothing is removed until you approve it.
+        NSPhotoLibraryAddUsageDescription: PixelPare adds smaller copies of videos you choose to compress to your library.
+        # BGTaskSchedulerPermittedIdentifiers is intentionally absent: BGContinuedProcessingTask is a TODO (see BackgroundActivity.swift).
+    settings:
+      base:
+        PRODUCT_NAME: PixelPare
+        PRODUCT_BUNDLE_IDENTIFIER: com.akshaymaloo.pixelpare
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

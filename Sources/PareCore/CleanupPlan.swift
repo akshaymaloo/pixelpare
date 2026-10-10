@@ -65,7 +65,10 @@ public enum SafetyViolation: Error, Equatable, Sendable {
 public enum SafetyCheck {
     /// Enforces: no removal unless its group is approved (or it is a screenshot outside any group),
     /// favorites are never removed, every group keeps at least one member.
-    public static func validate(plan: CleanupPlan, groups: [SimilarGroup], items: [MediaID: MediaItem]) throws {
+    /// `explicitlyApproved` are standalone (ungrouped) photos the user marked one by one, e.g. from the blurry tray;
+    /// they get the same favorite protection as everything else.
+    public static func validate(plan: CleanupPlan, groups: [SimilarGroup], items: [MediaID: MediaItem],
+                                explicitlyApproved: Set<MediaID> = []) throws {
         var groupOf: [MediaID: SimilarGroup] = [:]
         for g in groups { for m in g.members { groupOf[m] = g } }
 
@@ -76,7 +79,7 @@ public enum SafetyCheck {
                 if g.favorites.contains(id) { throw SafetyViolation.removalOfFavorite(id) }
                 guard case .approved(let keep) = g.approval else { throw SafetyViolation.removalWithoutApproval(id) }
                 if keep.contains(id) { throw SafetyViolation.removalOfKeptMember(id) }
-            } else if item.kind != .screenshot {
+            } else if item.kind != .screenshot, !explicitlyApproved.contains(id) {
                 throw SafetyViolation.removalWithoutApproval(id)
             }
         }
