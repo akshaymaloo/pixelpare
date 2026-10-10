@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 #endif
 
-/// "Pocket Workshop" palette (mocks/playful.html). The icon's teal→blue stays the only saturated colour.
+/// "Pocket Workshop" palette (docs/design.md). The icon's teal→blue stays the only saturated colour.
 enum Workshop {
     static let bench = Color(hex: 0xE3D8C6)
     static let benchDark = Color(hex: 0xD3C5AE)

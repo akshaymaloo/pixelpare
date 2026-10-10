@@ -11,7 +11,8 @@ bundle id prefix `com.akshaymaloo.pixelpare`, v1 scope = **similar & duplicate p
 - Apps: `xcodegen generate` then
   `xcodebuild -project PixelPare.xcodeproj -scheme PixelPare-macOS -destination 'platform=macOS' build CODE_SIGNING_ALLOWED=NO` and
   `… -scheme PixelPare-iOS -destination 'generic/platform=iOS Simulator' build`.
-- No signing identity on this Mac → Mac runs ad-hoc; iOS runs in Simulator only.
+- Signing: team `LDC68P74EM` in `project.yml` (automatic). The Mac app runs ad-hoc (`CODE_SIGN_IDENTITY=-`); iPhone builds need a
+  registered device (see README, "Testing on iPhone").
 - `ffmpeg` is available for generating test video fixtures (tests must not require it at runtime: commit small fixtures or synthesize with AVAssetWriter).
 
 ## Layout
@@ -73,7 +74,7 @@ public struct CleanupPlan: Sendable {   // unique-asset, de-duplicated across ca
 }
 public enum ScreenshotRule { static func candidates(_ items: [MediaItem], olderThan days: Int = 30, now: Date) -> [MediaID] } // never favorites
 public actor OperationJournal {   // JSON file, idempotent, crash-safe (write temp + rename)
-  public enum State: String, Codable { case planned, exported, encoded, verified, imported, importVerified, awaitingRemovalApproval, removed, failed }
+  public enum State   // journal v2 — see docs/resilience.md §3 (planned … awaitingRemovalApproval, removing, removed, skipped, failed)
   init(url: URL)   // corrupt file → moved to <name>.corrupt, starts empty
   func record(original: MediaID, state: State, newID: MediaID? = nil, error: String? = nil) throws  // one entry per original; same state = no-op; .removed is final
   func entries() -> [Entry]; func pending() -> [Entry]; func entry(for:) -> Entry?
@@ -112,7 +113,7 @@ public enum PreviewEncoder { static func sampleEstimate(input: URL, settings:, s
 // EncodeSettings width/height = track natural (unrotated) size; swapped automatically if given in display orientation of a 90° track; never upscaled.
 ```
 
-## UI (PareUI) — follow `mocks/playful.html` ("Pocket Workshop", see `docs/design.md`)
+## UI (PareUI) — "Pocket Workshop" (see `docs/design.md`)
 `AppModel` (@Observable): access state, scan progress, trays (lookalikes, videos, screenshots, blurry), CleanupPlan,
 job queue driven by PareEngine's `VideoPipeline`. Surfaces: **Workbench** (home: trays of found items on a bench,
 "about X worth a look"), **Light table** (lookalike groups; keeper is lit, extras slide off; approve per group),
@@ -122,11 +123,13 @@ Mac and iOS share the views; iOS uses a single stack with the bench as root.
 Sandbox entitlements: Photos (`com.apple.security.personal-information.photos-library`), user-selected read-only files.
 Info.plist: `NSPhotoLibraryUsageDescription`. Dev mode: `--folder <path>` launch arg / Settings toggle uses FolderLibrary.
 
-## Stages & owners (implementation by Sonnet 5.5, plan/review by Opus)
+## Stages (all done as of 2026-10-09)
 1. **Scaffold + PareCore** (+ tests) → `swift test` green.
 2. **PareVision + PareLibrary** and **PareTranscode** in parallel (+ tests with fixtures in `Tests/Fixtures`).
 3. **PareUI + app shells + project.yml** → both apps build; iOS screenshot from Simulator.
-4. Review (Opus + Sol), fix, README update.
+4. Review, fix, README update.
+5. Resilient `PareEngine` pipeline (docs/resilience.md), Pocket Workshop UI rebuild, iOS gestures, UI tests,
+   real-clip compression tests.
 
 ## Safety invariants (tests must cover)
 - No removal without `Approval.approved`; favorites never in removals; every group keeps ≥ 1.

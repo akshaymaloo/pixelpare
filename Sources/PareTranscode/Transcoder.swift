@@ -164,12 +164,15 @@ public struct Transcoder: Sendable {
             AVVideoCompressionPropertiesKey: compression,
         ]
         if let color = Self.colorProperties(format) { videoSettings[AVVideoColorPropertiesKey] = color }
+        #if os(macOS)
+        // AVVideoEncoderSpecificationKey is macOS-only; on iOS the flag has no effect.
         if Self.softwareEncoderOnly {
             videoSettings[AVVideoEncoderSpecificationKey] = [
                 kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder as String: false,
                 kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder as String: false,
             ]
         }
+        #endif
         let videoIn = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings, sourceFormatHint: nil)
         videoIn.transform = transform
         videoIn.expectsMediaDataInRealTime = false

@@ -1,8 +1,10 @@
-# PixelPare — Cleanup feature ideas (v0.1)
+# PixelPare — Cleanup feature ideas
 
 Each idea becomes a **module on the Workbench** (Pocket Workshop direction). Shared safety rules apply:
 suggestions only, nothing marked by default, favorites protected, explicit approval, honest estimates,
 originals go to Recently Deleted (recovery not guaranteed when iCloud is over quota).
+
+**Built (v1):** 1–4. **Next:** 5–6 (v1 scope, not built yet), then v1.1.
 
 Savings figures are rough, per typical library; validate against real libraries before showing numbers.
 
@@ -10,12 +12,12 @@ Savings figures are rough, per typical library; validate against real libraries 
 
 | # | Module | Detection | Action | Typical saving | Effort | Release |
 |---|---|---|---|---|---|---|
-| 1 | **Lookalike tray** (exact / near / similar) | SHA-256, dHash, Vision feature print *(built)* | Review & remove | High | Done (core) | **v1** |
-| 2 | **Video press** (HEVC copies) | PresetPolicy eligibility *(built)* | New smaller copy → review original | Very high | Done (core) | **v1** |
-| 3 | **Old screenshots** | `PHAssetMediaSubtype.photoScreenshot` *(built)* + age | Review & remove | Medium | Low | **v1** |
-| 4 | **Blurry shots** | Laplacian sharpness *(built)*, face capture quality, aesthetics `overallScore`/`isUtility`; exclude bursts, long exposure, motion-blur-intended (Live Photo long exposure effect) | Review & remove ("Probably blurry") | Low–medium | Low | **v1** |
-| 5 | **Screen recordings** | Video with `PHAssetMediaSubtype.videoScreenRecording` | Review & remove, or press | High per item | Low | **v1** |
-| 6 | **Biggest items** | Sort by resource size (`fileSize` when known) | Open in press / review | High | Low | **v1** |
+| 1 | **Lookalike tray** (exact / near / similar) | SHA-256, dHash, Vision feature print *(built)* | Review & remove | High | Done | **v1 ✓** |
+| 2 | **Video press** (HEVC copies) | PresetPolicy eligibility *(built)* | New smaller copy → review original | Very high | Done | **v1 ✓** |
+| 3 | **Old screenshots** | `PHAssetMediaSubtype.photoScreenshot` *(built)* + age > 30 days | Review & remove | Medium | Done | **v1 ✓** |
+| 4 | **Blurry shots** | Laplacian sharpness *(built)*, face capture quality, aesthetics `overallScore`/`isUtility`; exclude bursts, long exposure, motion-blur-intended (Live Photo long exposure effect) | Review & remove ("Probably blurry") | Low–medium | Done (sharpness only) | **v1 ✓** |
+| 5 | **Screen recordings** | Video with `PHAssetMediaSubtype.videoScreenRecording` | Review & remove, or press | High per item | Low | **v1 – todo** |
+| 6 | **Biggest items** | Sort by resource size (`fileSize` when known) | Open in press / review | High | Low | **v1 – todo** |
 | 7 | **Live Photo → still** | `photoLive` subtype | New still asset (HEIC photo resource, preserve date/location/favorite/hidden/albums) → review original. Turning "Live" off in Photos saves nothing. | ~1–3 MB each | Medium (reuses video replace flow + journal) | v1.1 |
 | 8 | **Burst leftovers** | `burstIdentifier` + `representsBurst`/`burstSelectionTypes` | Keep user/auto picks, suggest the rest | Medium | Low | v1.1 |
 | 9 | **Accidental shots** | Near-black/near-uniform histogram, very low aesthetics, pocket/floor (low saliency) | Review & remove | Low | Low | v1.1 |

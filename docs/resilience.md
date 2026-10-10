@@ -70,8 +70,11 @@ Unknown errors are treated as `.transient` up to the retry cap, then `.permanent
 - Injectable `Clock/Sleeper`, `NetworkMonitoring`, `DiskSpaceProviding`, `DeviceConditions` (thermal/low power),
   and `VideoEncoding` (transcode + verify) for deterministic tests.
 - Workspace: Application Support/PixelPare/Jobs (excluded from backup), not tmp — survives relaunch.
-- Mac: `ProcessInfo.beginActivity(.userInitiated + idleSystemSleepDisabled)` while running.
-  iOS: `BGContinuedProcessingTask`; on expiration cancel the current step — the journal resumes it later.
+- `BackgroundActivity` (PareUI) wraps every scan and video run.
+  - Mac: `ProcessInfo.beginActivity(.userInitiated + idleSystemSleepDisabled)`.
+  - iOS (today): screen auto-lock is disabled while work runs, and a `beginBackgroundTask` assertion covers short
+    trips out of the app. When it expires, iOS suspends the app and the journal resumes the job on the next launch.
+  - iOS (planned): `BGContinuedProcessingTask` for long batches with system progress UI.
 
 ## 8. Tests (fault injection)
 Scriptable `FakeLibrary` + `FakeEncoder` + fake conditions:

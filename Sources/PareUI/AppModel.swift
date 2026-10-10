@@ -327,6 +327,8 @@ public final class AppModel {
         scanTask?.cancel()
         scanState = .scanning(ScanProgress(phase: .listing, completed: 0, total: 0))
         let engine = ScanEngine(library: library, cacheURL: cacheURL)
+        let activity = BackgroundActivity("Scanning library")
+        defer { activity.end() }
         let task = Task { [weak self] in
             guard let self else { return }
             do {
@@ -701,6 +703,8 @@ public final class AppModel {
         let recoveredIDs = acceptedRecovered.filter { id in recoveredJobs.contains { $0.original == id } }.sorted()
         let ids = planIDs + recoveredIDs.filter { !planIDs.contains($0) }
         if !ids.isEmpty, !Task.isCancelled {
+            let activity = BackgroundActivity("Compressing videos")
+            defer { activity.end() }
             await pipeline.release(Set(recoveredIDs))
             recoveredJobs.removeAll { recoveredIDs.contains($0.original) }
             acceptedRecovered.subtract(recoveredIDs)

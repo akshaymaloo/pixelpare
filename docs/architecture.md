@@ -1,5 +1,8 @@
 # PixelPare — Technical Investigation & Architecture (draft v0.2)
 
+> Original investigation, kept for its API constraints and risks. What is actually built is described in the
+> README, `implementation-plan.md` and `resilience.md`.
+>
 > Folds in an earlier design review and `research.md`. Corrections from that review are marked **[v0.2]**.
 
 > Goal: free iCloud Photos space by (1) removing duplicate/similar photos and
