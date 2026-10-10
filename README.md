@@ -54,11 +54,13 @@ How it stays safe:
 2. `xcodegen generate` and open `PixelPare.xcodeproj`. Select the **PixelPare-iOS** scheme and your iPhone, then
    press **Run**. Signing is automatic with team `LDC68P74EM` (`project.yml`). If you fork the project, put your own
    team ID there. Xcode registers the phone and creates the profile on the first run.
-   From the command line, once the phone is registered:
+   Or from the command line (finds the phone, registers it, signs, installs and launches):
    ```sh
-   xcodebuild -project PixelPare.xcodeproj -scheme PixelPare-iOS -destination 'platform=iOS,name=<your iPhone>' \
-     -allowProvisioningUpdates build
+   scripts/run-on-iphone.sh                 # first connected iPhone
+   scripts/run-on-iphone.sh "iPhone 18" -- --sample   # a named phone, with launch arguments
    ```
+   If pairing fails with "device became unreachable", open Xcode → Window → Devices and Simulators with the phone
+   unlocked and accept *Trust* there.
 3. On first launch, choose **Use the Photos library** and allow **Full access**. Limited access only sees the
    photos you picked.
 
