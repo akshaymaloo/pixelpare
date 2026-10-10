@@ -168,7 +168,8 @@ struct PlanBar: View {
 
     private func summary(_ plan: CleanupPlan) -> String {
         var parts: [String] = []
-        if !plan.removals.isEmpty { parts.append("\(Format.count(plan.removals.count, "photo")) marked") }
+        if !plan.removals.isEmpty { parts.append("\(Format.count(plan.removals.count, "item")) marked") }
+        if !plan.stillJobs.isEmpty { parts.append(Format.count(plan.stillJobs.count, "still") + " to make") }
         if !plan.videoJobs.isEmpty { parts.append(Format.count(plan.videoJobs.count, "video") + " to press") }
         return parts.isEmpty ? "Nothing marked yet" : parts.joined(separator: " · ")
     }

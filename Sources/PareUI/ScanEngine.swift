@@ -24,6 +24,10 @@ public struct ScanResult: Sendable {
     public var groups: [SimilarGroup]
     public var screenshotCandidates: [MediaID]
     public var blurryCandidates: [MediaID] = []
+    public var screenRecordingCandidates: [MediaID] = []
+    public var biggestCandidates: [MediaID] = []
+    public var burstGroups: [BurstGroup] = []
+    public var livePhotoCandidates: [MediaID] = []
     public var eligibleVideos: [MediaID]
     public var skippedVideos: [(id: MediaID, reason: SkipReason)]
     /// Photos that could not be analysed (e.g. iCloud-only originals); they are never grouped.
@@ -52,7 +56,8 @@ public actor ScanEngine {
         let byID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
         var cache = SignalCache.load(from: cacheURL, revision: SignalExtractor.featurePrintRevision)
-        let images = all.filter { $0.kind != .video }
+        // Burst frames nobody picked have their own tray; they're never analysed, grouped or listed as blurry.
+        let images = all.filter { $0.kind != .video && $0.burstPick != false }
         var signals: [MediaID: ImageSignals] = [:]
         var hashes: [MediaID: String] = [:]
         var todo: [MediaItem] = []
@@ -96,6 +101,7 @@ public actor ScanEngine {
 
         let blurry = Self.blurryCandidates(images, signals: signals, excluding: Set(groups.flatMap(\.members)))
         let screenshots = ScreenshotRule.candidates(all, olderThan: 30, now: now())
+        let recordings = ScreenRecordingRule.candidates(all, olderThan: 30, now: now())
         var eligible: [MediaID] = []
         var skipped: [(MediaID, SkipReason)] = []
         for v in all where v.kind == .video {
@@ -105,7 +111,9 @@ public actor ScanEngine {
             }
         }
         return ScanResult(items: byID, groups: groups, screenshotCandidates: screenshots,
-                          blurryCandidates: blurry, eligibleVideos: eligible, skippedVideos: skipped.map { (id: $0.0, reason: $0.1) },
+                          blurryCandidates: blurry, screenRecordingCandidates: recordings,
+                          biggestCandidates: BiggestRule.candidates(all), burstGroups: BurstRule.groups(all),
+                          livePhotoCandidates: LivePhotoRule.candidates(all), eligibleVideos: eligible, skippedVideos: skipped.map { (id: $0.0, reason: $0.1) },
                           unanalyzedCount: images.count - signals.count)
     }
 

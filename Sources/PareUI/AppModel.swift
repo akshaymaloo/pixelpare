@@ -9,7 +9,7 @@ import PareLibrary
 import PareTranscode
 import PareVision
 
-public enum Destination: Hashable, Sendable { case home, similar, videos, screenshots, blurry, history, settings }
+public enum Destination: Hashable, Sendable { case home, similar, videos, screenshots, blurry, recordings, biggest, bursts, livePhotos, history, settings }
 
 public enum LibrarySource: Equatable, Sendable {
     case photos
@@ -57,13 +57,16 @@ public struct RunSummary: Sendable {
     public var skipped: [(id: MediaID, reason: String)] = []
     public var failed: [(id: MediaID, message: String)] = []
     public var notes: [String] = []
+    /// Live Photos turned into stills (the original is gone) and the paired-video bytes that freed.
+    public var stillsMade = 0
+    public var stillsBytes: Int64 = 0
 
     public var pendingOriginals: [MediaID] { copies.filter { !$0.originalRemoved }.map(\.original) }
     public var originalsRemovedCount: Int { copies.filter(\.originalRemoved).count }
     /// Net library reduction so far: removed photos plus videos whose original is gone. A second copy that sits
     /// next to its original saves nothing yet.
     public var estimatedReduction: Int64 {
-        removedBytes + copies.filter(\.originalRemoved).reduce(0) { $0 + $1.savedBytes }
+        removedBytes + stillsBytes + copies.filter(\.originalRemoved).reduce(0) { $0 + $1.savedBytes }
     }
     /// What removing every remaining original would add.
     public var pendingReduction: Int64 {
@@ -96,6 +99,13 @@ public final class AppModel {
     public private(set) var eligibleVideoIDs: [MediaID] = []
     public private(set) var skippedVideos: [(id: MediaID, reason: SkipReason)] = []
     public private(set) var blurryIDs: [MediaID] = []
+    public private(set) var screenRecordingIDs: [MediaID] = []
+    public private(set) var biggestIDs: [MediaID] = []
+    public private(set) var burstGroups: [BurstGroup] = []
+    public private(set) var livePhotoIDs: [MediaID] = []
+    /// Live Photos whose conversion started in an earlier run but didn't finish; selecting them again completes it
+    /// without making a second copy.
+    public private(set) var unfinishedStillIDs: Set<MediaID> = []
     public private(set) var unanalyzedCount = 0
     public private(set) var history: [OperationJournal.Entry] = []
     public private(set) var previewing: Set<MediaID> = []
@@ -113,12 +123,17 @@ public final class AppModel {
     public var selectedScreenshots: Set<MediaID> = []
     public var selectedBlurry: Set<MediaID> = []
     public var selectedVideos: Set<MediaID> = []
+    public var selectedRecordings: Set<MediaID> = []
+    public var selectedBiggest: Set<MediaID> = []
+    /// Burst frames (never the picks) marked for removal.
+    public var selectedBursts: Set<MediaID> = []
+    public var selectedStills: Set<MediaID> = []
     public var preset: VideoPreset = .gentle
     public var groupSort: GroupSort = .date
     public var path: [Destination] = []
     /// Calm mode: no animation, sound or haptics anywhere in the app.
     public var calmMode = false { didSet { defaults.set(calmMode, forKey: Self.calmKey) } }
-    /// `--screen lighttable|press|screenshots|blurry|receipt` opens that surface once the first scan finishes.
+    /// `--screen lighttable|press|screenshots|blurry|recordings|biggest|bursts|live|receipt` opens that surface once the first scan finishes.
     public private(set) var launchScreen: String?
     public var showPlan = false
     public var stage: Stage = .browsing
@@ -128,6 +143,7 @@ public final class AppModel {
     private var library: any MediaLibrary
     private var journal: OperationJournal
     private var pipeline: VideoPipeline
+    private var stills: StillConverter
     private let supportDirectory: URL
     @ObservationIgnored private var scanTask: Task<Void, Never>?
     @ObservationIgnored private var executionTask: Task<Void, Never>?
@@ -172,6 +188,7 @@ public final class AppModel {
         let j = OperationJournal(url: Self.journalURL(support, chosen))
         self.journal = j
         self.pipeline = Self.makePipeline(library: lib, journal: j, support: support, source: chosen)
+        self.stills = Self.makeStills(library: lib, support: support, source: chosen)
         if case .folder(let url) = chosen { _ = url.startAccessingSecurityScopedResource(); scopedFolder = url }
     }
 
@@ -185,6 +202,7 @@ public final class AppModel {
         let j = OperationJournal(url: Self.journalURL(supportDirectory, source))
         self.journal = j
         self.pipeline = Self.makePipeline(library: library, journal: j, support: supportDirectory, source: source)
+        self.stills = Self.makeStills(library: library, support: supportDirectory, source: source)
     }
 
     #if os(macOS)
@@ -207,6 +225,14 @@ public final class AppModel {
                                      source: LibrarySource) -> VideoPipeline {
         VideoPipeline(library: library, journal: journal,
                       workspace: JobWorkspace(root: jobsURL(support, source)))
+    }
+
+    private static func makeStills(library: any MediaLibrary, support: URL, source: LibrarySource) -> StillConverter {
+        StillConverter(library: library, journal: OperationJournal(url: stillsJournalURL(support, source)))
+    }
+
+    private static func stillsJournalURL(_ dir: URL, _ s: LibrarySource) -> URL {
+        dir.appendingPathComponent("stills\(sourceSuffix(s)).json")
     }
 
     /// A folder's identity is a short hash of its resolved path, so two folders never share a journal, cache or workspace.
@@ -269,6 +295,10 @@ public final class AppModel {
         case "press": path = [.videos]
         case "screenshots": path = [.screenshots]
         case "blurry": path = [.blurry]
+        case "recordings": path = [.recordings]
+        case "biggest": path = [.biggest]
+        case "bursts": path = [.bursts]
+        case "live": path = [.livePhotos]
         case "receipt":
             if let g = sortedGroups.first { approveGroup(g.id) }
             for id in screenshotIDs.prefix(3) { selectedScreenshots.insert(id) }
@@ -306,6 +336,7 @@ public final class AppModel {
         library = Self.makeLibrary(newSource)
         journal = OperationJournal(url: Self.journalURL(supportDirectory, newSource))
         pipeline = Self.makePipeline(library: library, journal: journal, support: supportDirectory, source: newSource)
+        stills = Self.makeStills(library: library, support: supportDirectory, source: newSource)
         thumbnails.removeAll()
         resetResults()
         recoveredJobs = []; acceptedRecovered = []
@@ -346,10 +377,13 @@ public final class AppModel {
         }
         scanTask = task
         await task.value
+        unfinishedStillIDs = Set(await stills.unfinished().map(\.original)).intersection(items.keys)
     }
 
     private func resetResults() {
         items = [:]; groups = []; screenshotIDs = []; eligibleVideoIDs = []; skippedVideos = []; blurryIDs = []
+        screenRecordingIDs = []; biggestIDs = []; burstGroups = []; livePhotoIDs = []; unfinishedStillIDs = []
+        selectedRecordings = []; selectedBiggest = []; selectedBursts = []; selectedStills = []
         selectedScreenshots = []; selectedBlurry = []; selectedVideos = []; draftKeep = [:]; keepers = [:]; videoEstimates = [:]
         previewErrors = [:]; unanalyzedCount = 0
     }
@@ -360,6 +394,11 @@ public final class AppModel {
         groups = r.groups
         screenshotIDs = r.screenshotCandidates
         blurryIDs = r.blurryCandidates
+        screenRecordingIDs = r.screenRecordingCandidates
+        let grouped = Set(r.groups.flatMap(\.members))
+        biggestIDs = r.biggestCandidates.filter { !grouped.contains($0) }
+        burstGroups = r.burstGroups
+        livePhotoIDs = r.livePhotoCandidates
         eligibleVideoIDs = r.eligibleVideos
             .sorted { (items[$0]?.byteSize ?? 0) > (items[$1]?.byteSize ?? 0) }
         skippedVideos = r.skippedVideos
@@ -490,6 +529,73 @@ public final class AppModel {
         CleanupPlan(removals: Set(blurryIDs)).estimatedSavings(items: items)
     }
 
+    // MARK: Screen recordings
+
+    public func toggleRecording(_ id: MediaID) {
+        guard items[id]?.isFavorite == false else { return }
+        if selectedRecordings.contains(id) { selectedRecordings.remove(id) } else { selectedRecordings.insert(id) }
+    }
+    public func selectAllRecordings() { selectedRecordings = Set(screenRecordingIDs) }
+    public func clearRecordings() { selectedRecordings = [] }
+
+    public var recordingOpportunity: ClosedRange<Int64> {
+        CleanupPlan(removals: Set(screenRecordingIDs)).estimatedSavings(items: items)
+    }
+
+    // MARK: Biggest items
+
+    public func toggleBiggest(_ id: MediaID) {
+        guard items[id]?.isFavorite == false else { return }
+        if selectedBiggest.contains(id) { selectedBiggest.remove(id) } else { selectedBiggest.insert(id) }
+    }
+    public func clearBiggest() { selectedBiggest = [] }
+
+    public var biggestBytes: Int64 { biggestIDs.reduce(0) { $0 + (items[$1]?.byteSize ?? 0) } }
+
+    /// Whether the video press can take this item.
+    public func canPress(_ id: MediaID) -> Bool { eligibleVideoIDs.contains(id) }
+
+    /// Opens the video press with just this video selected.
+    public func pressFromBiggest(_ id: MediaID) {
+        guard canPress(id) else { return }
+        selectedVideos = [id]
+        path.append(.videos)
+    }
+
+    // MARK: Burst leftovers
+
+    public var burstLeftoverIDs: [MediaID] { burstGroups.flatMap(\.leftovers) }
+
+    public func toggleBurstFrame(_ id: MediaID) {
+        guard burstLeftoverIDs.contains(id), items[id]?.isFavorite == false else { return }
+        if selectedBursts.contains(id) { selectedBursts.remove(id) } else { selectedBursts.insert(id) }
+    }
+
+    /// Marks every leftover of a burst, or clears them when they're all marked already.
+    public func toggleBurst(_ g: BurstGroup) {
+        if g.leftovers.allSatisfy(selectedBursts.contains) { selectedBursts.subtract(g.leftovers) }
+        else { selectedBursts.formUnion(g.leftovers) }
+    }
+    public func selectAllBursts() { selectedBursts = Set(burstLeftoverIDs) }
+    public func clearBursts() { selectedBursts = [] }
+
+    public var burstOpportunity: ClosedRange<Int64> {
+        CleanupPlan(removals: Set(burstLeftoverIDs)).estimatedSavings(items: items)
+    }
+
+    // MARK: Live Photos → stills
+
+    public func toggleStill(_ id: MediaID) {
+        if selectedStills.contains(id) { selectedStills.remove(id) } else { selectedStills.insert(id) }
+    }
+    public func selectAllStills() { selectedStills = Set(livePhotoIDs) }
+    public func clearStills() { selectedStills = [] }
+    public func selectUnfinishedStills() { selectedStills.formUnion(unfinishedStillIDs.intersection(livePhotoIDs)) }
+
+    public var liveOpportunity: ClosedRange<Int64> {
+        CleanupPlan(stillJobs: Set(livePhotoIDs)).estimatedSavings(items: items)
+    }
+
     // MARK: Videos
 
     public func toggleVideo(_ id: MediaID) {
@@ -608,7 +714,18 @@ public final class AppModel {
     public var plan: CleanupPlan {
         var jobs: [MediaID: VideoPreset] = [:]
         for id in applicableSelectedVideos { jobs[id] = preset }
-        return CleanupPlan(groups: groups, approvedScreenshots: selectedScreenshots.union(selectedBlurry), videoJobs: jobs)
+        return CleanupPlan(groups: groups, approvedScreenshots: selectedScreenshots.union(explicitRemovals),
+                           videoJobs: jobs, stillJobs: selectedStills)
+    }
+
+    /// Standalone items the user marked one by one in a tray (not screenshots, which have their own rule).
+    var explicitRemovals: Set<MediaID> {
+        selectedBlurry.union(selectedBursts).union(selectedRecordings).union(selectedBiggest)
+    }
+
+    /// Videos the user explicitly picked for removal (recordings tray or biggest items).
+    var approvedVideoRemovals: Set<MediaID> {
+        selectedRecordings.union(selectedBiggest).filter { items[$0]?.kind == .video }
     }
 
     public var planSavings: ClosedRange<Int64> { plan.estimatedSavings(items: items) }
@@ -616,10 +733,10 @@ public final class AppModel {
     /// Everything the app would suggest, before the user has approved anything. Each original counts once.
     public var opportunity: ClosedRange<Int64> {
         let removals = groups.reduce(into: Set<MediaID>()) { $0.formUnion($1.suggestedRemovals) }
-            .union(screenshotIDs).union(blurryIDs)
+            .union(screenshotIDs).union(blurryIDs).union(screenRecordingIDs).union(burstLeftoverIDs)
         var jobs: [MediaID: VideoPreset] = [:]
         for id in eligibleVideoIDs where isApplicable(id, preset: preset) { jobs[id] = preset }
-        return CleanupPlan(removals: removals, videoJobs: jobs).estimatedSavings(items: items)
+        return CleanupPlan(removals: removals, videoJobs: jobs, stillJobs: Set(livePhotoIDs)).estimatedSavings(items: items)
     }
 
     public var similarOpportunity: ClosedRange<Int64> {
@@ -642,7 +759,7 @@ public final class AppModel {
     public var eligibleVideoBytes: Int64 { eligibleVideoIDs.reduce(0) { $0 + (items[$1]?.byteSize ?? 0) } }
 
     public var librarySummary: String {
-        let photos = items.values.filter { $0.kind != .video }.count
+        let photos = items.values.filter { $0.kind != .video && $0.burstPick != false }.count
         let videos = items.count - photos
         return "\(sourceName) · \(Format.count(photos, "photo")) · \(Format.count(videos, "video"))"
     }
@@ -671,7 +788,8 @@ public final class AppModel {
         guard executionTask == nil, !isRemoving else { return }
         let plan = self.plan
         do {
-            try SafetyCheck.validate(plan: plan, groups: groups, items: items, explicitlyApproved: selectedBlurry)
+            try SafetyCheck.validate(plan: plan, groups: groups, items: items, explicitlyApproved: explicitRemovals,
+                                     approvedVideoRemovals: approvedVideoRemovals)
         } catch {
             errorMessage = "The plan didn't pass its safety check (\(error)). Nothing was changed."
             return
@@ -694,10 +812,12 @@ public final class AppModel {
         var summary = RunSummary()
         if !plan.removals.isEmpty {
             stage = .working(WorkProgress(
-                title: "Removing \(Format.count(plan.removals.count, "photo"))",
+                title: "Removing \(Format.count(plan.removals.count, "item"))",
                 detail: "Confirm in the system dialog. Nothing is removed until you do.", fraction: nil))
             await removePhotos(plan.removals.sorted(), into: &summary)
         }
+
+        if !plan.stillJobs.isEmpty, !Task.isCancelled { await convertStills(plan.stillJobs.sorted(), into: &summary) }
 
         let planIDs = plan.videoJobs.keys.filter { items[$0] != nil }.sorted()
         let recoveredIDs = acceptedRecovered.filter { id in recoveredJobs.contains { $0.original == id } }.sorted()
@@ -757,11 +877,14 @@ public final class AppModel {
         for id in requested {
             do {
                 guard let fresh = try await library.item(id) else { continue }
-                if fresh.isFavorite || fresh.kind == .video { protected += 1 } else { deletable.append(id) }
+                // Videos only go if the user picked them one by one; a burst pick is never a leftover.
+                let videoOK = fresh.kind != .video || approvedVideoRemovals.contains(id)
+                let repicked = fresh.burstPick == true && selectedBursts.contains(id)
+                if fresh.isFavorite || !videoOK || repicked { protected += 1 } else { deletable.append(id) }
             } catch { unconfirmed += 1 }
         }
         if protected > 0 {
-            summary.notes.append("\(Format.count(protected, "photo")) became a favorite and was left alone.")
+            summary.notes.append("\(Format.count(protected, "item")) became a favorite or changed and was left alone.")
         }
         if unconfirmed > 0 {
             summary.notes.append("\(Format.count(unconfirmed, "photo")) couldn't be checked and was left alone.")
@@ -786,6 +909,33 @@ public final class AppModel {
                 ? "Photos weren't removed\(why)"
                 : "Removed \(removed) of \(deletable.count) photos; \(Format.count(rest, "photo")) still in your library\(why).")
         }
+    }
+
+    /// Makes verified stills from Live Photos, then removes each original (system confirmation). See `StillConverter`.
+    private func convertStills(_ ids: [MediaID], into summary: inout RunSummary) async {
+        let targets = ids.compactMap { items[$0] }
+        guard !targets.isEmpty else { return }
+        let activity = BackgroundActivity("Making stills")
+        defer { activity.end() }
+        stage = .working(WorkProgress(title: "Making stills", detail: "Downloads from iCloud first if needed.",
+                                      fraction: nil, index: 0, total: targets.count))
+        let result = await stills.convert(targets) { done, total in
+            Task { @MainActor [weak self] in
+                guard let self, case .working(var p) = self.stage, p.title == "Making stills" else { return }
+                p.index = done; p.total = total
+                self.stage = .working(p)
+            }
+        }
+        summary.stillsMade = result.converted.count
+        summary.stillsBytes = result.converted.reduce(0) { $0 + $1.savedBytes }
+        for (id, why) in result.skipped.sorted(by: { $0.key < $1.key }) { summary.skipped.append((id, why)) }
+        for (id, why) in result.failed.sorted(by: { $0.key < $1.key }) { summary.failed.append((id, why)) }
+        if !result.declined.isEmpty {
+            summary.notes.append("\(Format.count(result.declined.count, "Live Photo")) now \(result.declined.count == 1 ? "has" : "have") a still, but the original was kept because you declined the removal. Make still again to finish.")
+        }
+        selectedStills.subtract(result.converted.map(\.original))
+        unfinishedStillIDs = Set(await stills.unfinished().map(\.original))
+        if Task.isCancelled { summary.notes.append("Stopped early; unfinished Live Photos continue next time without making a second copy.") }
     }
 
     private func isGone(_ id: MediaID) async -> Bool {

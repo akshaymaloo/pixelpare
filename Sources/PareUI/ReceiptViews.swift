@@ -66,6 +66,11 @@ struct PlanReceiptView: View {
         let groupRemovals = model.groups.reduce(into: Set<MediaID>()) { $0.formUnion($1.approvedRemovals) }
         let screenshots = plan.removals.intersection(model.selectedScreenshots).subtracting(groupRemovals)
         let blurry = plan.removals.intersection(model.selectedBlurry).subtracting(groupRemovals).subtracting(screenshots)
+        let taken = groupRemovals.union(screenshots).union(blurry)
+        let bursts = plan.removals.intersection(model.selectedBursts).subtracting(taken)
+        let recordings = plan.removals.intersection(model.selectedRecordings).subtracting(taken).subtracting(bursts)
+        let biggest = plan.removals.intersection(model.selectedBiggest).subtracting(taken).subtracting(bursts).subtracting(recordings)
+        let stills = plan.stillJobs.sorted()
         let videos = model.applicableSelectedVideos
         let recovered = model.recoveredJobs.filter { model.acceptedRecovered.contains($0.original) }
         ScrollView {
@@ -73,7 +78,7 @@ struct PlanReceiptView: View {
                 ReceiptPaper {
                     receiptHeader("Receipt · plan review")
                     Rule()
-                    if groupRemovals.isEmpty && screenshots.isEmpty && blurry.isEmpty && videos.isEmpty && recovered.isEmpty {
+                    if plan.removals.isEmpty && stills.isEmpty && videos.isEmpty && recovered.isEmpty {
                         Text("Nothing marked.").font(.system(.subheadline, design: .monospaced))
                     }
                     if !groupRemovals.isEmpty {
@@ -87,6 +92,22 @@ struct PlanReceiptView: View {
                     if !blurry.isEmpty {
                         ReceiptLine(label: "Blurry shots removed", value: "\(blurry.count) · \(Format.bytes(bytes(blurry)))",
                                     detail: "Marked by you, one by one.")
+                    }
+                    if !bursts.isEmpty {
+                        ReceiptLine(label: "Burst frames removed", value: "\(bursts.count) · \(Format.bytes(bytes(bursts)))",
+                                    detail: "Extra frames you marked. Each burst keeps its pick.")
+                    }
+                    if !recordings.isEmpty {
+                        ReceiptLine(label: "Screen recordings removed", value: "\(recordings.count) · \(Format.bytes(bytes(recordings)))",
+                                    detail: "Older than 30 days, marked by you. Videos are removed only when you pick them.")
+                    }
+                    if !biggest.isEmpty {
+                        ReceiptLine(label: "Big items removed", value: "\(biggest.count) · \(Format.bytes(bytes(biggest)))",
+                                    detail: "Picked one by one from the biggest things.")
+                    }
+                    if !stills.isEmpty {
+                        ReceiptLine(label: "Live Photos → stills", value: "\(stills.count) · ≈ \(Format.bytes(stillSavings(stills)))",
+                                    detail: "A still is made and verified first. Then the Live Photo goes to Recently Deleted. Motion and sound are lost.")
                     }
                     if !videos.isEmpty {
                         ReceiptLine(label: "Second copies (\(model.preset.title))", value: "\(videos.count)",
@@ -108,6 +129,9 @@ struct PlanReceiptView: View {
                 if !plan.removals.isEmpty {
                     Banner(symbol: "exclamationmark.triangle.fill", text: "Check your iCloud storage first. Removed items normally stay in Recently Deleted for 30 days. But if your iCloud storage is over its limit, they can be deleted immediately and can't be recovered. Removal applies on all your devices.")
                 }
+                if !stills.isEmpty {
+                    Banner(symbol: "livephoto", tint: Brand.blue, text: "A still is a new photo: date, location, favorite and albums are carried over, but it won't be in shared albums or Memories, and links to the old one break. Live Photos in iCloud are downloaded first. If PixelPare quits halfway, it finishes next time without making a second copy.")
+                }
                 if !videos.isEmpty {
                     Banner(symbol: "info.circle", tint: Brand.blue, text: "A pressed video is a new item: date, location, favorite and albums are carried over, but it won't be in shared albums or Memories, and links to the old one break. Videos in iCloud are downloaded first. The press keeps running while PixelPare is open and picks up where it left off if it quits.")
                 }
@@ -116,7 +140,7 @@ struct PlanReceiptView: View {
                     Button("Back to the bench") { model.errorMessage = nil; dismiss() }
                         .buttonStyle(.chunkyPlain).keyboardShortcut(.cancelAction)
                     Spacer()
-                    Button(confirmLabel(plan.removals.count, videos.count, recovered.count)) { model.executePlan() }
+                    Button(confirmLabel(plan.removals.count, videos.count, recovered.count, stills.count)) { model.executePlan() }
                         .buttonStyle(.chunky).keyboardShortcut(.defaultAction).disabled(!model.canExecute || model.isRemoving)
                 }
             }
@@ -144,7 +168,16 @@ struct PlanReceiptView: View {
         .foregroundStyle(Workshop.ink2).padding(.leading, 12)
     }
 
-    private func confirmLabel(_ photos: Int, _ videos: Int, _ resumed: Int) -> String {
+    private func stillSavings(_ ids: [MediaID]) -> Int64 { ids.reduce(0) { $0 + (model.items[$1]?.pairedVideoBytes ?? 0) } }
+
+    private func confirmLabel(_ photos: Int, _ videos: Int, _ resumed: Int, _ stills: Int) -> String {
+        if stills > 0 {
+            var parts: [String] = []
+            if photos > 0 { parts.append("Remove \(photos)") }
+            parts.append("\(parts.isEmpty ? "Make" : "make") \(Format.count(stills, "still"))")
+            if videos > 0 { parts.append("press \(videos)") }
+            return parts.joined(separator: ", ")
+        }
         if videos == 0, resumed > 0 {
             return photos > 0 ? "Remove \(photos) and resume \(resumed)" : "Resume \(Format.count(resumed, "video"))"
         }
@@ -259,6 +292,10 @@ struct RecapView: View {
                     Rule()
                     ReceiptLine(label: "Photos removed",
                                 value: summary.removedCount == 0 ? "none" : "\(summary.removedCount) · \(Format.bytes(summary.removedBytes))")
+                    if summary.stillsMade > 0 {
+                        ReceiptLine(label: "Live Photos → stills", value: "\(summary.stillsMade) · \(Format.bytes(summary.stillsBytes))",
+                                    detail: "Each still was verified before its Live Photo was removed.")
+                    }
                     ReceiptLine(label: "Smaller copies made", value: "\(summary.copies.count)",
                                 detail: summary.copies.isEmpty ? nil : "Each one was verified before it was counted.")
                     ReceiptLine(label: "Originals removed", value: "\(summary.originalsRemovedCount)")

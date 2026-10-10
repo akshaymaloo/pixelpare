@@ -3,22 +3,26 @@ import Foundation
 public struct CleanupPlan: Sendable, Equatable {
     public var removals: Set<MediaID>
     public var videoJobs: [MediaID: VideoPreset]
+    /// Live Photos to turn into stills: a verified still copy is made, then the original goes to Recently Deleted.
+    public var stillJobs: Set<MediaID>
 
-    public init(removals: Set<MediaID> = [], videoJobs: [MediaID: VideoPreset] = [:]) {
-        self.removals = removals; self.videoJobs = videoJobs
+    public init(removals: Set<MediaID> = [], videoJobs: [MediaID: VideoPreset] = [:], stillJobs: Set<MediaID> = []) {
+        self.removals = removals; self.videoJobs = videoJobs; self.stillJobs = stillJobs.subtracting(removals)
     }
 
-    /// Removals come only from approved groups (non-kept, non-favorite members) and approved screenshots.
+    /// Removals come only from approved groups (non-kept, non-favorite members) and the explicitly approved
+    /// standalone items (`approvedScreenshots`: screenshots, blurry shots, burst leftovers, recordings, big items).
     /// Video jobs for videos that are also removed are dropped.
     public init(groups: [SimilarGroup], approvedScreenshots: Set<MediaID> = [],
-                videoJobs: [MediaID: VideoPreset] = [:]) {
+                videoJobs: [MediaID: VideoPreset] = [:], stillJobs: Set<MediaID> = []) {
         var removals = approvedScreenshots
         for g in groups { removals.formUnion(g.approvedRemovals) }
         self.removals = removals
         self.videoJobs = videoJobs.filter { !removals.contains($0.key) }
+        self.stillJobs = stillJobs.subtracting(removals)
     }
 
-    public var isEmpty: Bool { removals.isEmpty && videoJobs.isEmpty }
+    public var isEmpty: Bool { removals.isEmpty && videoJobs.isEmpty && stillJobs.isEmpty }
 
     /// Each MediaID counts once; a video both removed and compressed counts only as a removal.
     /// Unknown sizes contribute 0 to the low bound and an estimate to the high bound.
@@ -39,8 +43,18 @@ public struct CleanupPlan: Sendable, Equatable {
                 high += max(0, Self.guessSize(item) - est.low)
             }
         }
+        for id in stillJobs where !removals.contains(id) {
+            guard let item = items[id] else { continue }
+            if let paired = item.pairedVideoBytes, paired > 0 {
+                low += Int64(Double(paired) * 0.8); high += paired
+            } else {
+                high += Self.guessPairedVideo
+            }
+        }
         return low...max(low, high)
     }
+
+    static let guessPairedVideo: Int64 = 3_000_000
 
     /// Rough original size when PhotoKit gives none.
     static func guessSize(_ item: MediaItem) -> Int64 {
@@ -61,6 +75,7 @@ public enum SafetyViolation: Error, Equatable, Sendable {
     case invalidKeepSet(UUID)
     case videoJobOnNonVideo(MediaID)
     case removalOfVideo(MediaID)
+    case stillJobOnNonLivePhoto(MediaID)
 }
 
 public enum SafetyCheck {
@@ -68,16 +83,21 @@ public enum SafetyCheck {
     /// favorites are never removed, every group keeps at least one member.
     /// `explicitlyApproved` are standalone (ungrouped) photos the user marked one by one, e.g. from the blurry tray;
     /// they get the same favorite protection as everything else.
+    /// `approvedVideoRemovals` are videos the user picked one by one in the screen recordings or biggest-items tray;
+    /// a video can only be removed through that explicit path.
     public static func validate(plan: CleanupPlan, groups: [SimilarGroup], items: [MediaID: MediaItem],
-                                explicitlyApproved: Set<MediaID> = []) throws {
+                                explicitlyApproved: Set<MediaID> = [],
+                                approvedVideoRemovals: Set<MediaID> = []) throws {
         var groupOf: [MediaID: SimilarGroup] = [:]
         for g in groups { for m in g.members { groupOf[m] = g } }
 
         for id in plan.removals.sorted() {
             guard let item = items[id] else { throw SafetyViolation.unknownItem(id) }
             if item.isFavorite { throw SafetyViolation.removalOfFavorite(id) }
-            // Videos only leave through the video pipeline, never through a photo removal or explicit approval.
-            if item.kind == .video { throw SafetyViolation.removalOfVideo(id) }
+            // Videos leave only through an explicit per-item approval (recordings / biggest items), never in bulk.
+            if item.kind == .video, !(approvedVideoRemovals.contains(id) && explicitlyApproved.contains(id)) {
+                throw SafetyViolation.removalOfVideo(id)
+            }
             if let g = groupOf[id] {
                 if g.favorites.contains(id) { throw SafetyViolation.removalOfFavorite(id) }
                 guard case .approved(let keep) = g.approval else { throw SafetyViolation.removalWithoutApproval(id) }
@@ -93,6 +113,10 @@ public enum SafetyCheck {
             if !g.members.isEmpty, Set(g.members).subtracting(plan.removals).isEmpty {
                 throw SafetyViolation.groupWouldKeepNothing(g.id)
             }
+        }
+        for id in plan.stillJobs.sorted() {
+            guard let item = items[id] else { throw SafetyViolation.unknownItem(id) }
+            if item.kind != .livePhoto || item.isEdited { throw SafetyViolation.stillJobOnNonLivePhoto(id) }
         }
         for id in plan.videoJobs.keys.sorted() {
             guard let item = items[id] else { throw SafetyViolation.unknownItem(id) }

@@ -91,6 +91,11 @@ public protocol MediaLibrary: Sendable {
     /// Deleting an id that no longer exists is not an error. A declined system prompt throws
     /// `PhotosErrorCodes.userCancelled`.
     func delete(_ ids: [MediaID]) async throws
+    /// Creates a still photo from a Live Photo's photo resource (downloading it if needed), carrying over date,
+    /// location, favorite, hidden and albums, and returns the new asset's id. The original is not touched.
+    func convertLivePhotoToStill(_ id: MediaID) async throws -> MediaID
+    /// A still created from `original` (same date and size, not a Live Photo) after `addedAfter`, ignoring `excluding`.
+    func findStillCopy(of original: MediaItem, addedAfter: Date, excluding: Set<MediaID>) async throws -> MediaID?
 }
 
 public extension MediaLibrary {

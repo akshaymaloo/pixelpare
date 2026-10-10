@@ -29,6 +29,10 @@ public struct PixelPareRootView: View {
                                 case .videos: VideoPressView()
                                 case .screenshots: ScreenshotsView()
                                 case .blurry: BlurryView()
+                                case .recordings: RecordingsView()
+                                case .biggest: BiggestView()
+                                case .bursts: BurstsView()
+                                case .livePhotos: LivePhotosView()
                                 case .history: HistoryView()
                                 case .settings: SettingsView()
                                 }
