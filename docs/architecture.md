@@ -107,9 +107,9 @@ membership, People/face tags & memories linkage (re-derived by Photos later), Sl
 |---|---|---|---|
 | **Gentle** (default) | HEVC, least compression; keep resolution & fps | ~15–40% on H.264; little on HEVC | Least change |
 | **Balanced** | HEVC, more compression; keep resolution & fps | ~30–55% | Fine detail may change |
-| **Smaller resolution** | HEVC, cap at 1080p (never upscale); keep fps | ~50–75% on 4K | Visible on big screens |
+| **Compact** (was "Smaller resolution") | HEVC, cap at 1080p (never upscale); keep fps | ~50–75% on 4K | Visible on big screens |
 
-No custom sliders and no 60→30 fps in v1. Hide "Smaller resolution" for ≤1080p sources. Ship two presets if testing shows Gentle/Balanced are indistinguishable. **[v0.2]**
+No custom sliders and no 60→30 fps in v1. Hide "Compact" for ≤1080p sources. Ship two presets if testing shows Gentle/Balanced are indistinguishable. **[v0.2]**
 
 \*Production benchmarks put H.264→HEVC at 15–40% at equal perceived quality (`research.md`); measure on our own corpus. Sizes move through **Estimate → Preview ready (sample encode) → Final size**, always labelled. **[v0.2]**
 

@@ -13,7 +13,7 @@ Every direction inherits the same safety spine:
 - Show **Estimate → Preview ready (sample-based estimate) → Final size**. Unknown sizes stay unknown. Report net library reduction, not measured iCloud quota gains; downloads need disclosure.
 - Video flow: choose settings → review plan → create and verify smaller copies → separately review originals for removal. Keeping both copies is a valid result, not “space saved.”
 - **Undo mark** changes a selection, not a deletion. Recovery belongs to Photos: normally 30 days, but may be unavailable when iCloud is over its limit. Explain cross-device removal; never encourage emptying Recently Deleted.[8]
-- Gentle defaults to least compression; Gentle/Balanced retain dimensions and frame rate, with possible detail changes. Smaller resolution caps at 1080p without upscaling, retaining frame rate; disable it when not distinct. No “identical quality” promise.
+- Gentle defaults to least compression; Gentle/Balanced retain dimensions and frame rate, with possible detail changes. Compact caps at 1080p without upscaling, retaining frame rate; disable it when not distinct. No “identical quality” promise.
 
 ### Gestures
 
@@ -23,7 +23,7 @@ Optional, tactile shortcuts; each has a labeled button and VoiceOver actions (Ma
 - **Light table surface:** swipe left/right for next/previous group; the tray strip follows.
 - **Long-press (0.35 s) on a photo:** full-screen peek; release or tap to dismiss.
 - **Double-tap a non-keeper:** Make keeper.
-- **Video press dial:** drag between Gentle / Balanced / Smaller resolution detents; selection haptic per detent; never starts an encode.
+- **Video press dial:** drag between Gentle / Balanced / Compact detents; selection haptic per detent; never starts an encode.
 - **A/B compare:** drag the divider handle.
 - **Workbench:** pull to refresh rescans.
 - **Receipt sheet:** swipe down to dismiss, disabled while a removal or run is in progress.
@@ -42,7 +42,7 @@ Old screenshots are a later, explicitly reviewed paper pile—not automatically 
 
 **Photo review:** lift a contact sheet into a full-size light table; place labeled selection tabs beside candidates. A fixed keeper stays visible. On Mac, pointer/keyboard selection replaces dragging; iPhone offers thumb-sized buttons.
 
-**Video:** three detented settings—**Gentle / Balanced / Smaller resolution**—with factual setting labels underneath. A press creates a *second* reel; the original visibly remains.
+**Video:** three detented settings—**Gentle / Balanced / Compact**—with factual setting labels underneath. A press creates a *second* reel; the original visibly remains.
 
 **Recap:** an itemized workshop receipt, separating copies created, originals kept, removals and net reduction.
 

@@ -72,6 +72,7 @@ struct BiggestView: View {
                         .buttonStyle(.chunkyPlain).controlSize(.small).disabled(favorite)
                         .accessibilityIdentifier("biggest-mark")
                 }
+                .fixedSize()
             }
         }
         .padding(.vertical, 8)

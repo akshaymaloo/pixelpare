@@ -668,7 +668,7 @@ public final class AppModel {
         return estimate(for: id, preset: p)
     }
 
-    /// Videos the preset can actually be applied to (Smaller resolution is not offered for ≤1080p).
+    /// Videos the preset can actually be applied to (Compact is not offered for ≤1080p).
     public func isApplicable(_ id: MediaID, preset p: VideoPreset) -> Bool {
         guard let item = items[id] else { return false }
         return PresetPolicy.settings(for: item, preset: p) != nil

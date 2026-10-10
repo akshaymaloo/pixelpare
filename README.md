@@ -2,7 +2,7 @@
 
 A Mac and iPhone app that frees up iCloud Photos space. It finds lookalike photos, old screenshots and blurry
 shots for you to review, and makes smaller HEVC copies of large videos at a level you pick (Gentle, Balanced or
-Smaller resolution). Everything runs on the device, and the app reviews before it acts: it never deletes on its own.
+Compact). Everything runs on the device, and the app reviews before it acts: it never deletes on its own.
 An original video is only removed after its smaller copy has been imported, verified, and approved by you.
 
 <p>
@@ -18,7 +18,7 @@ An original video is only removed after its smaller copy has been imported, veri
 | Tray | What it does |
 |---|---|
 | **Lookalikes** (light table) | Groups exact copies, near-identical and similar shots, then suggests a keeper with reasons ("Sharper", …). You approve each group. |
-| **Video press** | Makes HEVC copies at Gentle / Balanced / Smaller resolution (≤ 1080p). Shows estimates and an A/B preview, then imports the copy with its date, location, favorite and albums kept. The original is removed only after you approve. |
+| **Video press** | Makes HEVC copies at Gentle / Balanced / Compact (≤ 1080p). Shows estimates and an A/B preview, then imports the copy with its date, location, favorite and albums kept. The original is removed only after you approve. |
 | **Old screenshots** | Screenshots older than 30 days. |
 | **Screen recordings** | Screen recordings older than 30 days, biggest first. Removal needs your explicit pick; favorites are never offered. |
 | **Biggest things** | The 50 largest photos and videos over 10 MB. Send a video to the press, or mark any item for removal. |

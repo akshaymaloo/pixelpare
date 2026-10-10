@@ -70,7 +70,7 @@ extension VideoPreset {
         switch self {
         case .gentle: "Gentle"
         case .balanced: "Balanced"
-        case .smallerResolution: "Smaller resolution"
+        case .smallerResolution: "Compact"
         }
     }
     var summary: String {

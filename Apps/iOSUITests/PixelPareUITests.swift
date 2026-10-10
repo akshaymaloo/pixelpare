@@ -171,6 +171,78 @@ final class PixelPareUITests: XCTestCase {
     func testBurstsTrayApprove() throws { assertTrayMarks(screen: "bursts", button: "burst-approve", snapName: "24-bursts") }
     func testLivePhotosTrayMarkAll() throws { assertTrayMarks(screen: "live", button: "live-mark-all", snapName: "25-live") }
 
+    /// Regression: the Press and Mark buttons in the Biggest tray wrapped mid-word ("Pres/s", "Mar/k").
+    func testBiggestButtonsStayOnOneLine() throws {
+        launch(screen: "biggest")
+        let mark = app.buttons.matching(identifier: "biggest-mark").firstMatch
+        XCTAssertTrue(mark.waitForExistence(timeout: 20))
+        let press = app.buttons.matching(identifier: "biggest-press").firstMatch
+        XCTAssertTrue(press.exists, "A pressable video should show a Press button")
+        XCTAssertLessThan(mark.frame.height, 56, "Mark label wraps: \(mark.frame)")
+        XCTAssertLessThan(press.frame.height, 56, "Press label wraps: \(press.frame)")
+        XCTAssertLessThanOrEqual(press.frame.maxX, mark.frame.minX + 1, "Press and Mark overlap")
+        snap("26-biggest-buttons")
+    }
+
+    /// Regression: the duration pill on recording cards wrapped onto two lines ("210 MB ·" / "3:10").
+    func testRecordingBadgeStaysOnOneLine() throws {
+        launch(screen: "recordings")
+        let badge = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MB' AND label CONTAINS '·'")).firstMatch
+        XCTAssertTrue(badge.waitForExistence(timeout: 20), "Recording size/duration badge missing")
+        XCTAssertLessThan(badge.frame.height, 20, "Badge wraps: \(badge.frame)")
+        snap("27-recordings-badge")
+    }
+
+    func testBiggestMarkTogglesPlanAndReceiptShowsBigItems() throws {
+        launch(screen: "biggest")
+        let mark = app.buttons.matching(identifier: "biggest-mark").firstMatch
+        XCTAssertTrue(mark.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Nothing marked yet"].exists)
+        mark.tap()
+        XCTAssertTrue(app.staticTexts["1 item marked"].waitForExistence(timeout: 10), "Plan bar did not count the mark")
+        app.buttons.matching(identifier: "biggest-mark").firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Nothing marked yet"].waitForExistence(timeout: 10), "Unmark did not clear the plan")
+        mark.tap()
+        app.buttons["Review receipt"].tap()
+        XCTAssertTrue(app.staticTexts["Big items removed"].waitForExistence(timeout: 10), "Receipt missing the Big items line")
+        snap("28-biggest-receipt")
+        app.buttons["Back to the bench"].tap()
+    }
+
+    func testRecordingsSelectAllShowsReceiptLine() throws {
+        launch(screen: "recordings")
+        let all = app.buttons.matching(identifier: "recordings-mark-all").firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 20))
+        all.tap()
+        app.buttons["Review receipt"].tap()
+        XCTAssertTrue(app.staticTexts["Screen recordings removed"].waitForExistence(timeout: 10), "Receipt missing the recordings line")
+        snap("29-recordings-receipt")
+        app.buttons["Back to the bench"].tap()
+    }
+
+    func testCellularVideoToggleIsOnAndPersists() throws {
+        launch()
+        let more = app.buttons["More"]
+        XCTAssertTrue(more.waitForExistence(timeout: 20))
+        more.tap()
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Download videos over cellular"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Cellular toggle missing in Settings")
+        XCTAssertEqual(toggle.value as? String, "1", "Cellular download should default to on")
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(toggle.value as? String, "0")
+        app.terminate()
+        launch()
+        app.buttons["More"].tap()
+        app.buttons["Settings"].firstMatch.tap()
+        let again = app.switches["Download videos over cellular"].firstMatch
+        XCTAssertTrue(again.waitForExistence(timeout: 10))
+        XCTAssertEqual(again.value as? String, "0", "Cellular choice did not persist across launches")
+        again.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(again.value as? String, "1")
+        snap("34-settings-cellular")
+    }
+
     // MARK: Video press (presets and dial only)
 
     func testVideoPressPresetChipsAndDial() throws {
@@ -178,7 +250,7 @@ final class PixelPareUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Balanced"].waitForExistence(timeout: 20) || app.staticTexts["Balanced"].waitForExistence(timeout: 2),
                       "Preset labels missing")
         snap("30-press-initial")
-        for preset in ["Balanced", "Smaller resolution", "Gentle"] {
+        for preset in ["Balanced", "Compact", "Gentle"] {
             let chip = app.buttons.matching(NSPredicate(format: "label == %@", preset)).firstMatch
             if chip.exists { chip.tap() } else { app.staticTexts[preset].firstMatch.tap() }
             Thread.sleep(forTimeInterval: 0.6)

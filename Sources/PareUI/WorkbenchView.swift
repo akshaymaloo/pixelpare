@@ -218,7 +218,7 @@ private struct VideoPressTray: View {
                             .font(.system(.title3, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink2)
                     }
                 }
-                Text("Pick Gentle, Balanced or Smaller resolution. The press makes a **second** copy. The original stays right where it is until the new one is verified and you approve removing it.")
+                Text("Pick Gentle, Balanced or Compact. The press makes a **second** copy. The original stays right where it is until the new one is verified and you approve removing it.")
                     .font(.footnote).foregroundStyle(Workshop.ink2)
                 HStack {
                     Button("Open the press") { model.path.append(.videos) }.buttonStyle(.chunky)

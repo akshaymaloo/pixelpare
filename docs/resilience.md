@@ -100,7 +100,7 @@ orientation, keeps its audio, and that originals are removed after approval.
 
 Results on 2026-10-09 (software HEVC encoder, M3; SSIM from `scripts/score-test-videos.sh`):
 
-| Clip | Gentle | Balanced | Smaller resolution |
+| Clip | Gentle | Balanced | Compact |
 |---|---|---|---|
 | 1080p30 H.264 20 Mbps, grain | −68 %, SSIM 0.983 | −77 %, 0.981 | n/a (already ≤ 1920) |
 | 1080p portrait (rotation 90°), grain | −68 %, 0.984 | −77 %, 0.981 | n/a |

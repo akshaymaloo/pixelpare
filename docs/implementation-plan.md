@@ -117,7 +117,7 @@ public enum PreviewEncoder { static func sampleEstimate(input: URL, settings:, s
 `AppModel` (@Observable): access state, scan progress, trays (lookalikes, videos, screenshots, blurry), CleanupPlan,
 job queue driven by PareEngine's `VideoPipeline`. Surfaces: **Workbench** (home: trays of found items on a bench,
 "about X worth a look"), **Light table** (lookalike groups; keeper is lit, extras slide off; approve per group),
-**Video press** (preset dial with three detents — Gentle / Balanced / Smaller resolution — A/B compare on a preview encode),
+**Video press** (preset dial with three detents — Gentle / Balanced / Compact — A/B compare on a preview encode),
 **Receipt** (plan review before confirm, and the honest recap after), **Calm mode** (no animation / sound).
 Mac and iOS share the views; iOS uses a single stack with the bench as root.
 Sandbox entitlements: Photos (`com.apple.security.personal-information.photos-library`), user-selected read-only files.

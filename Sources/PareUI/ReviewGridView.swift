@@ -86,6 +86,7 @@ struct ReviewGridView: View {
                 .overlay(alignment: .bottomLeading) {
                     if let text = badge?(id) {
                         Text(text).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.white)
+                            .lineLimit(1).fixedSize()
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(Capsule().fill(Workshop.ink.opacity(0.78))).padding(8)
                     }
