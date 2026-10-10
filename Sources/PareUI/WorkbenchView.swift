@@ -24,6 +24,12 @@ struct WorkbenchView: View {
             .frame(maxWidth: 1100)
             .frame(maxWidth: .infinity)
         }
+        .refreshable {
+            guard !scanning else { return }
+            model.rescan()
+            await Task.yield()
+            while scanning, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(200)) }
+        }
         .background(BenchBackground())
         .safeAreaInset(edge: .bottom) { if !model.plan.isEmpty { PlanBar() } }
         .navigationTitle("Workbench")

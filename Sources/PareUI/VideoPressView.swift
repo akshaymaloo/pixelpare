@@ -130,6 +130,7 @@ struct VideoPressView: View {
 struct PresetDial: View {
     @Binding var preset: VideoPreset
     @Environment(\.calm) private var calm
+    @State private var live: CGFloat?
 
     private let order = VideoPreset.allCases
     private var index: Int { order.firstIndex(of: preset) ?? 0 }
@@ -152,15 +153,20 @@ struct PresetDial: View {
                     .overlay(Circle().strokeBorder(Workshop.ink, lineWidth: 4))
                     .shadow(color: Workshop.shadow.opacity(0.35), radius: 8, y: 6)
                 Capsule().fill(Workshop.paper).frame(width: 7, height: 38).offset(y: -29)
-                    .rotationEffect(.degrees([-55.0, 0, 55][index]))
+                    .rotationEffect(.degrees(live.map { DialDetent.liveAngle(offset: $0) } ?? DialDetent(preset).angle))
                     .animation(calm ? nil : .spring(duration: 0.25, bounce: 0.35), value: index)
+                    .animation(nil, value: live)
             }
             .frame(width: 170, height: 160)
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { v in
-                let dx = v.location.x - 85
-                set(dx < -28 ? .gentle : dx > 28 ? .smallerResolution : .balanced)
-            })
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { v in
+                    let dx = v.location.x - 85
+                    live = calm ? nil : dx
+                    set(DialDetent.nearest(offset: dx).preset)
+                }
+                .onEnded { _ in live = nil })
+            .sensoryFeedback(trigger: preset) { _, _ in calm ? nil : .selection }
             .accessibilityElement()
             .accessibilityLabel("Preset dial")
             .accessibilityValue(preset.title)
@@ -187,7 +193,6 @@ struct PresetDial: View {
 
     private func set(_ p: VideoPreset) {
         guard p != preset else { return }
-        Feedback.tick(calm: calm)
         preset = p
     }
 }

@@ -41,7 +41,13 @@ public struct PixelPareRootView: View {
         .environment(\.calm, model.calmMode || reduceMotion)
         .preferredColorScheme(.light)
         .tint(Brand.blue)
-        .sheet(isPresented: $m.showPlan) { PlanReceiptView().environment(model).preferredColorScheme(.light) }
+        .sheet(isPresented: $m.showPlan) {
+            let working: Bool = { if case .working = model.stage { true } else { false } }()
+            PlanReceiptView().environment(model).preferredColorScheme(.light)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled(ReceiptDismissal.isLocked(isRemoving: model.isRemoving, isWorking: working))
+        }
         .alert("Something went wrong", isPresented: Binding(get: { m.errorMessage != nil && !m.showPlan }, set: { if !$0 { m.errorMessage = nil } })) {
             Button("OK") { m.errorMessage = nil }
         } message: { Text(m.errorMessage ?? "") }

@@ -8,6 +8,7 @@ struct LightTableView: View {
     @Environment(\.calm) private var calm
     @State private var currentID: UUID?
     @State private var focusedMember: MediaID?
+    @State private var peek: MediaID?
 
     private var compact: Bool { sizeClass == .compact }
 
@@ -24,7 +25,7 @@ struct LightTableView: View {
                     TrayStrip(groups: groups, current: g.id, axis: compact ? .horizontal : .vertical) { select($0) }
                     VStack(spacing: 12) {
                         LightSurface(group: g, index: (groups.firstIndex { $0.id == g.id } ?? 0) + 1, count: groups.count,
-                                     focused: $focusedMember, step: { moveGroup(groups, from: g.id, by: $0) })
+                                     focused: $focusedMember, peek: $peek, step: { moveGroup(groups, from: g.id, by: $0) })
                         GroupActionBar(group: g, advance: { advance(groups, from: g.id) })
                     }
                 }
@@ -33,6 +34,8 @@ struct LightTableView: View {
             }
         }
         .background(BenchBackground())
+        .overlay { if let id = peek { PeekOverlay(id: id) { peek = nil }.transition(.opacity) } }
+        .animation(calm ? nil : .easeOut(duration: 0.15), value: peek)
         .navigationTitle("Lookalike tray")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -146,6 +149,7 @@ private struct LightSurface: View {
     let index: Int
     let count: Int
     @Binding var focused: MediaID?
+    @Binding var peek: MediaID?
     let step: (Int) -> Void
 
     private var compact: Bool { sizeClass == .compact }
@@ -179,7 +183,7 @@ private struct LightSurface: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 14) {
                     ForEach(group.members, id: \.self) { id in
-                        LightCard(group: group, id: id, keeping: keep.contains(id), isFocused: focused == id)
+                        LightCard(group: group, id: id, keeping: keep.contains(id), isFocused: focused == id, peek: $peek)
                             .onTapGesture { focused = id }
                     }
                 }
@@ -196,6 +200,12 @@ private struct LightSurface: View {
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Workshop.bezel)
             .shadow(color: Workshop.shadow.opacity(0.35), radius: 14, y: 10))
+        .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
+            let d = GroupSwipe.resolve(translation: v.translation).delta
+            if d != 0 { step(d) }
+        })
+        .accessibilityAction(named: "Next group") { step(1) }
+        .accessibilityAction(named: "Previous group") { step(-1) }
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.leftArrow) { moveFocus(-1); return .handled }
@@ -246,6 +256,10 @@ private struct LightCard: View {
     let id: MediaID
     let keeping: Bool
     let isFocused: Bool
+    @Binding var peek: MediaID?
+    @State private var drag: CGFloat = 0
+    @State private var shakes: CGFloat = 0
+    @State private var protectedHint = false
 
     private var compact: Bool { sizeClass == .compact }
     private var isFavorite: Bool { group.favorites.contains(id) }
@@ -268,6 +282,22 @@ private struct LightCard: View {
             }
             .opacity(marked ? 0.82 : 1)
             .settle(value: marked)
+            .overlay(alignment: .bottom) {
+                if protectedHint {
+                    Label("Protected", systemImage: "lock.fill").font(.caption.weight(.bold)).foregroundStyle(Workshop.heart)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(Workshop.paper).shadow(radius: 2)).padding(.bottom, 10)
+                        .transition(.opacity)
+                }
+            }
+            .modifier(ShakeEffect(travel: shakes))
+            .offset(y: drag)
+            .simultaneousGesture(swipe)
+            .onTapGesture(count: 2) { if !isKeeper && !isFavorite { makeKeeper() } }
+            .onLongPressGesture(minimumDuration: 0.35, maximumDistance: 12, perform: { peek = id },
+                                onPressingChanged: { if !$0 { peek = nil } })
+            .sensoryFeedback(trigger: shakes) { _, _ in calm ? nil : .warning }
+            .sensoryFeedback(trigger: marked) { _, _ in calm ? nil : .impact(weight: .light) }
 
             VStack(alignment: .leading, spacing: 4) {
                 let dateText = Text(model.title(for: id)).font(.system(size: 11, weight: .semibold, design: .monospaced))
@@ -306,6 +336,41 @@ private struct LightCard: View {
             }
             .padding(.horizontal, 4)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityActions {
+            if !isFavorite && !isKeeper {
+                Button(keeping ? "Mark" : "Undo mark") { model.toggleKeep(group: group.id, member: id) }
+                Button("Make keeper") { makeKeeper() }
+            }
+        }
+    }
+
+    private func makeKeeper() {
+        Feedback.tick(calm: calm)
+        model.setKeeper(group: group.id, member: id)
+    }
+
+    /// Vertical swipe: up marks, down undoes. Off in Calm mode; the buttons remain.
+    private var swipe: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onChanged { v in
+                guard !calm, SwipeDecision.isVertical(v.translation) else { return }
+                drag = SwipeDecision.rubberBand(v.translation.height, limit: isFavorite || isKeeper ? 10 : 90)
+            }
+            .onEnded { v in
+                defer { withAnimation(calm ? nil : .spring(duration: 0.3, bounce: 0.3)) { drag = 0 } }
+                guard !calm else { return }
+                switch SwipeDecision.resolve(translation: v.translation, isKeeper: isKeeper, isFavorite: isFavorite, isMarked: marked) {
+                case .mark where keeping, .unmark where !keeping:
+                    model.toggleKeep(group: group.id, member: id)
+                case .protected:
+                    withAnimation(.linear(duration: 0.3)) { shakes += 1; protectedHint = true }
+                    Task { try? await Task.sleep(for: .seconds(1.1)); withAnimation { protectedHint = false } }
+                case .resist:
+                    withAnimation(.linear(duration: 0.2)) { shakes += 1 }
+                default: break
+                }
+            }
     }
 
     private var caption: String {

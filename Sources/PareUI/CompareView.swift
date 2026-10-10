@@ -86,12 +86,12 @@ struct CompareView: View {
                     .mask(alignment: .trailing) { Rectangle().frame(width: geo.size.width * (1 - split)) }
                 Rectangle().fill(.white).frame(width: 2).shadow(radius: 2)
                     .position(x: geo.size.width * split, y: geo.size.height / 2)
-                Circle().fill(.white).frame(width: 30, height: 30).shadow(radius: 3)
+                Circle().fill(.white).frame(width: 34, height: 34).shadow(radius: 3)
                     .overlay(Image(systemName: "arrow.left.and.right").font(.caption.bold()).foregroundStyle(.black))
                     .position(x: geo.size.width * split, y: geo.size.height / 2)
             }
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { split = min(max($0.location.x / geo.size.width, 0), 1) })
+            .gesture(DragGesture(minimumDistance: 0).onChanged { split = CompareSplit.fraction(x: $0.location.x, width: geo.size.width) })
         }
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .accessibilityLabel("Original and \(preset.title) comparison slider")

@@ -15,6 +15,21 @@ Every direction inherits the same safety spine:
 - **Undo mark** changes a selection, not a deletion. Recovery belongs to Photos: normally 30 days, but may be unavailable when iCloud is over its limit. Explain cross-device removal; never encourage emptying Recently Deleted.[8]
 - Gentle defaults to least compression; Gentle/Balanced retain dimensions and frame rate, with possible detail changes. Smaller resolution caps at 1080p without upscaling, retaining frame rate; disable it when not distinct. No “identical quality” promise.
 
+### Gestures
+
+Optional, tactile shortcuts; each has a labeled button and VoiceOver actions (Mark, Undo mark, Make keeper, Next/Previous group).
+
+- **Light table card:** swipe up marks, swipe down undoes (60 pt threshold, rubber-band follow).
+- **Light table surface:** swipe left/right for next/previous group; the tray strip follows.
+- **Long-press (0.35 s) on a photo:** full-screen peek; release or tap to dismiss.
+- **Double-tap a non-keeper:** Make keeper.
+- **Video press dial:** drag between Gentle / Balanced / Smaller resolution detents; selection haptic per detent; never starts an encode.
+- **A/B compare:** drag the divider handle.
+- **Workbench:** pull to refresh rescans.
+- **Receipt sheet:** swipe down to dismiss, disabled while a removal or run is in progress.
+
+Rules: gestures only mark or move, never delete, and call the same AppModel actions as the buttons. Favorites can't be marked (shake + "Protected"); the keeper resists. Calm mode and Reduce Motion turn off swipe-to-mark, animation and haptics; buttons remain.
+
 Old screenshots are a later, explicitly reviewed paper pile—not automatically worthless.
 
 ## Six genuinely different directions
