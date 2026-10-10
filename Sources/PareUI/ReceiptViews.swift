@@ -67,12 +67,13 @@ struct PlanReceiptView: View {
         let screenshots = plan.removals.intersection(model.selectedScreenshots).subtracting(groupRemovals)
         let blurry = plan.removals.intersection(model.selectedBlurry).subtracting(groupRemovals).subtracting(screenshots)
         let videos = model.applicableSelectedVideos
+        let recovered = model.recoveredJobs.filter { model.acceptedRecovered.contains($0.original) }
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ReceiptPaper {
                     receiptHeader("Receipt · plan review")
                     Rule()
-                    if groupRemovals.isEmpty && screenshots.isEmpty && blurry.isEmpty && videos.isEmpty {
+                    if groupRemovals.isEmpty && screenshots.isEmpty && blurry.isEmpty && videos.isEmpty && recovered.isEmpty {
                         Text("Nothing marked.").font(.system(.subheadline, design: .monospaced))
                     }
                     if !groupRemovals.isEmpty {
@@ -92,6 +93,10 @@ struct PlanReceiptView: View {
                                     detail: "Smaller copies are made and verified first. Originals stay until you approve their removal.")
                         ForEach(videos, id: \.self) { id in videoLine(id) }
                     }
+                    if !recovered.isEmpty {
+                        ReceiptLine(label: "Unfinished from last time", value: "\(recovered.count)",
+                                    detail: "You chose to resume these. They are finished and verified the same way; originals stay until you approve.")
+                    }
                     ReceiptLine(label: "Favorites in this plan", value: "0", detail: "Favorites are never removed.")
                     Rule()
                     ReceiptLine(label: "Estimated space", value: "≈ \(Format.range(model.planSavings))", strong: true)
@@ -109,8 +114,8 @@ struct PlanReceiptView: View {
                     Button("Back to the bench") { model.errorMessage = nil; dismiss() }
                         .buttonStyle(.chunkyPlain).keyboardShortcut(.cancelAction)
                     Spacer()
-                    Button(confirmLabel(plan.removals.count, videos.count)) { model.executePlan() }
-                        .buttonStyle(.chunky).keyboardShortcut(.defaultAction).disabled(plan.isEmpty)
+                    Button(confirmLabel(plan.removals.count, videos.count, recovered.count)) { model.executePlan() }
+                        .buttonStyle(.chunky).keyboardShortcut(.defaultAction).disabled(!model.canExecute || model.isRemoving)
                 }
             }
             .padding(22)
@@ -137,8 +142,11 @@ struct PlanReceiptView: View {
         .foregroundStyle(Workshop.ink2).padding(.leading, 12)
     }
 
-    private func confirmLabel(_ photos: Int, _ videos: Int) -> String {
-        switch (photos > 0, videos > 0) {
+    private func confirmLabel(_ photos: Int, _ videos: Int, _ resumed: Int) -> String {
+        if videos == 0, resumed > 0 {
+            return photos > 0 ? "Remove \(photos) and resume \(resumed)" : "Resume \(Format.count(resumed, "video"))"
+        }
+        return switch (photos > 0, videos > 0) {
         case (true, true): "Remove \(photos) and press \(videos)"
         case (true, false): "Remove \(Format.count(photos, "photo"))"
         default: "Press \(videos == 1 ? "a smaller copy" : "\(videos) smaller copies")"
@@ -280,7 +288,7 @@ struct RecapView: View {
                             }.foregroundStyle(Workshop.ink)
                         }
                         Button("Review \(Format.count(pending.count, "original")) for removal…") { confirmRemoval = true }
-                            .buttonStyle(.chunky)
+                            .buttonStyle(.chunky).disabled(model.isRemoving)
                     }
                     .padding(18).frame(maxWidth: .infinity, alignment: .leading).workshopModule(radius: 20, screws: false)
                 }
@@ -298,7 +306,7 @@ struct RecapView: View {
                 Button("How to recover in Photos") {
                     if let url = URL(string: "https://support.apple.com/108922") { openURL(url) }
                 }.buttonStyle(.borderless)
-                Button("Back to the bench") { model.finishRun() }.buttonStyle(.chunky)
+                Button("Back to the bench") { model.finishRun() }.buttonStyle(.chunky).disabled(model.isRemoving)
             }
             .padding(22).frame(maxWidth: 600).frame(maxWidth: .infinity)
         }

@@ -8,6 +8,12 @@ extension VideoPipeline {
     /// unchanged since the job began, and the new copy exists with the expected duration and a known non-zero size.
     public func removeOriginals(_ ids: [MediaID]) async -> RemovalResult {
         var result = RemovalResult()
+        guard !removalInProgress else {
+            for id in ids { result.refused[id] = "Another removal is already running." }
+            return result
+        }
+        removalInProgress = true
+        defer { removalInProgress = false }
         var approved: [(id: MediaID, entry: Entry)] = []
         do {
             for id in ids {
@@ -59,6 +65,10 @@ extension VideoPipeline {
             workspace.cleanup(for: id)
             result.removed.append(id)
             hub.send(.finished(id, .removed))
+            return nil
+        }
+        guard !original.isFavorite else {
+            result.refused[id] = "Favorite, so it was left alone."
             return nil
         }
         guard isUnchanged(original, entry) else {

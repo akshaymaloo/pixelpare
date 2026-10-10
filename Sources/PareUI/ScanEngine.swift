@@ -80,7 +80,7 @@ public actor ScanEngine {
                 if Task.isCancelled { cancelled = true; group.cancelAll(); continue }
                 completed += 1
                 cache.entries[result.id.raw] = SignalCache.Entry(
-                    byteSize: byID[result.id]?.byteSize, exactHash: result.hash, signals: result.signals)
+                    byteSize: byID[result.id]?.byteSize, modificationDate: byID[result.id]?.modificationDate, exactHash: result.hash, signals: result.signals)
                 if let s = result.signals { signals[result.id] = s }
                 if let h = result.hash { hashes[result.id] = h }
                 progress(ScanProgress(phase: .analyzing, completed: completed, total: total))

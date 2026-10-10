@@ -614,3 +614,74 @@ struct PipelineControlTests {
         await b.shutdown()
     }
 }
+
+@Suite("Pipeline resilience: favorites, overlap and held jobs")
+struct PipelineSafetyTests {
+    @Test func favoriteVideoIsSkippedAtPreflight() async throws {
+        let rig = try Rig()
+        var v = makeVideo(1)
+        v.isFavorite = true
+        let p = try await rig.run([v])
+        let e = try #require(await rig.entry(v.id))
+        #expect(e.state == .skipped)
+        #expect(e.lastError?.message == "Favorite, so it was left alone")
+        #expect(rig.library.importCount == 0)
+        await p.shutdown()
+    }
+
+    @Test func originalFavoritedAfterCompressionIsNeverRemoved() async throws {
+        let rig = try Rig()
+        let v = makeVideo(1)
+        let p = try await rig.run([v])
+        var fav = try #require(try await rig.library.item(v.id))
+        fav.isFavorite = true
+        rig.library.add(fav)
+        let r = await p.removeOriginals([v.id])
+        #expect(r.removed.isEmpty)
+        #expect(r.refused[v.id] != nil)
+        #expect(rig.library.deleteCalls.isEmpty)
+        #expect(rig.library.has(v.id))
+        await p.shutdown()
+    }
+
+    @Test func concurrentRemovalsDeleteEachOriginalOnce() async throws {
+        let rig = try Rig()
+        let v = makeVideo(1)
+        let p = try await rig.run([v])
+        rig.library.beforeDelete = { _ in try? await Task.sleep(for: .milliseconds(150)) }
+        async let first = p.removeOriginals([v.id])
+        async let second = p.removeOriginals([v.id])
+        let results = await [first, second]
+        #expect(results.flatMap(\.removed) == [v.id])
+        #expect(rig.library.deleteCalls == [[v.id]])
+        #expect(results.contains { $0.refused[v.id] != nil })
+        #expect(await rig.entry(v.id)?.state == .removed)
+        // The guard is released afterwards: a later call is judged on the journal, not turned away as overlapping.
+        let again = await p.removeOriginals([v.id])
+        #expect(again.removed.isEmpty)
+        #expect(rig.library.deleteCalls == [[v.id]])
+        await p.shutdown()
+    }
+
+    @Test func heldJobsDoNotRunUntilReleased() async throws {
+        let rig = try Rig()
+        let v = makeVideo(1)
+        rig.library.add(v)
+        let first = rig.pipeline()
+        try await first.enqueue([v], preset: .balanced)
+        await first.pause()
+        await first.shutdown()
+        #expect(await rig.entry(v.id)?.state != .awaitingRemovalApproval)
+
+        let p = rig.pipeline()
+        try await p.recover(autoResume: false)
+        await p.hold([v.id])
+        await p.resume()
+        await p.waitUntilIdle()
+        #expect(rig.library.importCount == 0)
+        await p.release([v.id])
+        await p.waitUntilIdle()
+        #expect(await rig.entry(v.id)?.state == .awaitingRemovalApproval)
+        await p.shutdown()
+    }
+}

@@ -60,6 +60,7 @@ public enum SafetyViolation: Error, Equatable, Sendable {
     case groupWouldKeepNothing(UUID)
     case invalidKeepSet(UUID)
     case videoJobOnNonVideo(MediaID)
+    case removalOfVideo(MediaID)
 }
 
 public enum SafetyCheck {
@@ -75,6 +76,8 @@ public enum SafetyCheck {
         for id in plan.removals.sorted() {
             guard let item = items[id] else { throw SafetyViolation.unknownItem(id) }
             if item.isFavorite { throw SafetyViolation.removalOfFavorite(id) }
+            // Videos only leave through the video pipeline, never through a photo removal or explicit approval.
+            if item.kind == .video { throw SafetyViolation.removalOfVideo(id) }
             if let g = groupOf[id] {
                 if g.favorites.contains(id) { throw SafetyViolation.removalOfFavorite(id) }
                 guard case .approved(let keep) = g.approval else { throw SafetyViolation.removalWithoutApproval(id) }

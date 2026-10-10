@@ -14,11 +14,12 @@ struct VideoPressView: View {
 
     var body: some View {
         Group {
-            if model.eligibleVideoIDs.isEmpty && model.skippedVideos.isEmpty {
+            if model.eligibleVideoIDs.isEmpty && model.skippedVideos.isEmpty && model.recoveredJobs.isEmpty {
                 EmptyShelf(symbol: "film", title: "No videos to press", message: "No videos were found.")
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        if !model.recoveredJobs.isEmpty { RecoveredSection() }
                         controls
                         eligibleList
                         if !model.skippedVideos.isEmpty { skipped }
@@ -273,6 +274,34 @@ private struct VideoRow: View {
     }
 }
 
+/// Jobs a previous session left unfinished. They stay on hold until the user resumes or discards them.
+private struct RecoveredSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Silk("Unfinished from last time")
+            Text("These videos were mid-press when PixelPare last stopped. They don't start on their own. Resume the ones you want in your next press, or discard them. Originals are never touched by either.")
+                .font(.footnote).foregroundStyle(Workshop.ink2)
+            ForEach(model.recoveredJobs, id: \.original) { job in
+                let accepted = model.acceptedRecovered.contains(job.original)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.title(for: job.original)).font(.footnote.weight(.semibold)).foregroundStyle(Workshop.ink)
+                    HStack(spacing: 8) {
+                        Button(accepted ? "Will resume" : "Resume") { model.setRecoveredAccepted(job.original, !accepted) }
+                            .buttonStyle(accepted ? .chunky : .chunkyPlain).controlSize(.small)
+                            .accessibilityHint(accepted ? "Tap to leave it for later" : "Adds it to your next press")
+                        Button("Discard") { Task { await model.discardRecovered(job.original) } }
+                            .buttonStyle(.chunkyPlain).controlSize(.small)
+                            .accessibilityHint("Cancels this job. The original is untouched")
+                    }
+                }
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).workshopModule(radius: 20, screws: false)
+    }
+}
+
 private struct PressBar: View {
     @Environment(AppModel.self) private var model
 
@@ -287,7 +316,7 @@ private struct PressBar: View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Silk("Step 3 · Press")
-                Text(count == 0 ? "No videos picked" : "\(Format.count(count, "video")) · \(model.preset.title)")
+                Text(count == 0 ? (model.acceptedRecovered.isEmpty ? "No videos picked" : "\(Format.count(model.acceptedRecovered.count, "unfinished video")) to resume") : "\(Format.count(count, "video")) · \(model.preset.title)")
                     .font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
             }
             Spacer(minLength: 8)
@@ -299,7 +328,7 @@ private struct PressBar: View {
             Button(count == 0 ? "Review receipt" : "Press \(count == 1 ? "a smaller copy" : "\(count) smaller copies")") {
                 model.showPlan = true
             }
-            .buttonStyle(.chunky).disabled(plan.isEmpty)
+            .buttonStyle(.chunky).disabled(!model.canExecute)
         }
         .padding(.horizontal, 20).padding(.vertical, 10)
         .workshopModule(radius: 20, screws: false)

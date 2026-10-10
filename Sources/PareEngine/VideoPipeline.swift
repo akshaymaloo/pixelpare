@@ -61,6 +61,8 @@ public actor VideoPipeline {
     var currentTask: Task<ProcessEnd, Never>?
     var paused = false
     var crashed = false
+    var removalInProgress = false
+    var held: Set<MediaID> = []
     var cancelled: Set<MediaID> = []
     var lastState: [MediaID: OperationJournal.State] = [:]
     var idleWaiters: [CheckedContinuation<Void, Never>] = []
@@ -157,6 +159,23 @@ public actor VideoPipeline {
         hub.send(.finished(id, .cancelled))
     }
 
+    /// Keeps recovered jobs out of the queue until the caller releases them. Used so unfinished jobs from a
+    /// previous session only run after the user accepts them.
+    public func hold(_ ids: Set<MediaID>) {
+        held.formUnion(ids)
+        queue.removeAll { ids.contains($0) }
+    }
+
+    /// Puts held jobs back in the queue (they run once the pipeline is resumed).
+    public func release(_ ids: Set<MediaID>) async {
+        for id in ids.sorted() where held.contains(id) {
+            held.remove(id)
+            guard let e = await journal.entry(for: id), Self.isInFlight(e.state) else { continue }
+            if !queue.contains(id) && currentID != id { queue.append(id) }
+        }
+        kick()
+    }
+
     /// Re-queues a failed or skipped job. With a verified-but-unconfirmed copy it resumes at verification.
     public func retry(_ id: MediaID) async throws {
         try acquireLock()
@@ -189,7 +208,7 @@ public actor VideoPipeline {
 
     // MARK: Queue
 
-    static func isInFlight(_ s: OperationJournal.State) -> Bool {
+    public static func isInFlight(_ s: OperationJournal.State) -> Bool {
         switch s {
         case .planned, .preflight, .downloading, .downloaded, .encoding, .encoded, .verified, .importing, .imported:
             true

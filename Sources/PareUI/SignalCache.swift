@@ -6,6 +6,7 @@ import PareCore
 struct SignalCache: Codable, Sendable {
     struct Entry: Codable, Sendable {
         var byteSize: Int64?
+        var modificationDate: Date?
         var exactHash: String?
         var signals: ImageSignals?
     }
@@ -27,7 +28,7 @@ struct SignalCache: Codable, Sendable {
     }
 
     func entry(for item: MediaItem) -> Entry? {
-        guard let e = entries[item.id.raw], e.byteSize == item.byteSize else { return nil }
+        guard let e = entries[item.id.raw], e.byteSize == item.byteSize, e.modificationDate == item.modificationDate else { return nil }
         return e
     }
 }

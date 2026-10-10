@@ -147,4 +147,35 @@ struct SafetyCheckTests {
             try SafetyCheck.validate(plan: CleanupPlan(videoJobs: [mid("a"): .gentle]), groups: [], items: items)
         }
     }
+
+    @Test func rejectsVideoInPhotoRemovalsEvenWhenExplicitlyApproved() {
+        #expect(throws: SafetyViolation.removalOfVideo(mid("v"))) {
+            try SafetyCheck.validate(plan: CleanupPlan(removals: [mid("v")]), groups: [], items: items,
+                                     explicitlyApproved: [mid("v")])
+        }
+        #expect(throws: SafetyViolation.removalOfVideo(mid("v"))) {
+            try SafetyCheck.validate(plan: CleanupPlan(removals: [mid("v")]), groups: [], items: items)
+        }
+    }
+
+    @Test func explicitApprovalStillWorksForPhotos() throws {
+        try SafetyCheck.validate(plan: CleanupPlan(removals: [mid("a")]), groups: [], items: items,
+                                 explicitlyApproved: [mid("a")])
+    }
+
+    @Test func rejectsVideoMemberOfApprovedGroup() {
+        let it = index([photo("a"), video("v")])
+        let g = SimilarGroup(members: [mid("a"), mid("v")], suggestedKeeper: mid("a"), kind: .similar,
+                             approval: .approved(keep: [mid("a")]))
+        #expect(throws: SafetyViolation.removalOfVideo(mid("v"))) {
+            try SafetyCheck.validate(plan: CleanupPlan(groups: [g]), groups: [g], items: it)
+        }
+    }
+
+    @Test func removingEveryMemberIsRejected() {
+        let g = group(.approved(keep: [mid("a")]))
+        #expect(throws: SafetyViolation.removalOfKeptMember(mid("a"))) {
+            try SafetyCheck.validate(plan: CleanupPlan(removals: [mid("a"), mid("b")]), groups: [g], items: items)
+        }
+    }
 }

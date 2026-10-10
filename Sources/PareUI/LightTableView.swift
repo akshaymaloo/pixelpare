@@ -40,13 +40,26 @@ struct LightTableView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 @Bindable var m = model
-                Picker("Sort", selection: $m.groupSort) {
-                    ForEach(GroupSort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                if compact {
+                    Menu {
+                        Picker("Sort", selection: $m.groupSort) {
+                            ForEach(GroupSort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                    } label: { Image(systemName: "arrow.up.arrow.down") }
+                        .accessibilityLabel("Sort groups")
+                    CalmToggle(iconOnly: true)
+                    Button { model.showPlan = true } label: { Label("Review receipt", systemImage: "receipt").labelStyle(.iconOnly) }
+                        .accessibilityLabel("Review receipt")
+                        .disabled(model.plan.isEmpty)
+                } else {
+                    Picker("Sort", selection: $m.groupSort) {
+                        ForEach(GroupSort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    CalmToggle()
+                    Button { model.showPlan = true } label: { Label("Review receipt", systemImage: "receipt") }
+                        .disabled(model.plan.isEmpty)
                 }
-                .pickerStyle(.menu)
-                CalmToggle()
-                Button { model.showPlan = true } label: { Label("Review receipt", systemImage: "receipt") }
-                    .disabled(model.plan.isEmpty)
             }
         }
     }
@@ -95,7 +108,7 @@ private struct TrayStrip: View {
         let selected = g.id == current
         return Button { select(g.id) } label: {
             PolaroidFrame(corner: 5, border: 3, bottom: 3) {
-                ThumbnailView(id: g.suggestedKeeper, maxPixel: 200).aspectRatio(4 / 3, contentMode: .fit)
+                ThumbnailView(id: model.keeper(for: g), maxPixel: 200).aspectRatio(4 / 3, contentMode: .fit)
             }
             .frame(width: axis == .vertical ? 88 : 72)
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Brand.teal, lineWidth: selected ? 2.5 : 0).padding(-3))
@@ -228,13 +241,15 @@ private struct LampGrid: View {
 private struct LightCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.calm) private var calm
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let group: SimilarGroup
     let id: MediaID
     let keeping: Bool
     let isFocused: Bool
 
+    private var compact: Bool { sizeClass == .compact }
     private var isFavorite: Bool { group.favorites.contains(id) }
-    private var isSuggested: Bool { id == group.suggestedKeeper }
+    private var isKeeper: Bool { id == model.keeper(for: group) }
     private var marked: Bool { !keeping && !isFavorite }
 
     var body: some View {
@@ -255,16 +270,23 @@ private struct LightCard: View {
             .settle(value: marked)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(model.title(for: id)).font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Workshop.ink).lineLimit(1)
-                    Spacer()
-                    Text(caption).font(.caption).foregroundStyle(Workshop.ink2).lineLimit(1)
+                let dateText = Text(model.title(for: id)).font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Workshop.ink)
+                let statusText = Text(caption).font(.caption).foregroundStyle(Workshop.ink2)
+                if compact {
+                    VStack(alignment: .leading, spacing: 2) { dateText; statusText }
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    HStack(alignment: .firstTextBaseline) { dateText; Spacer(); statusText.multilineTextAlignment(.trailing) }
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: 8) {
                     if isFavorite {
                         Label("Protected · no mark slot", systemImage: "lock.fill")
                             .font(.caption.weight(.semibold)).foregroundStyle(Workshop.heart)
+                    } else if isKeeper {
+                        Label("Keeper · always stays", systemImage: "star.fill")
+                            .font(.caption.weight(.semibold)).foregroundStyle(Workshop.tealDark)
                     } else {
                         Button {
                             Feedback.tick(calm: calm)
@@ -273,14 +295,12 @@ private struct LightCard: View {
                             .buttonStyle(.chunkyPlain).controlSize(.small)
                             .accessibilityHint(keeping ? "Marks this photo for removal if you approve the group"
                                                        : "Puts this photo back; it will be kept")
-                        if !(keeping && model.keepSet(for: group).count == 1) {
-                            Button { Feedback.tick(calm: calm); model.setKeeper(group: group.id, member: id) } label: {
-                                Image(systemName: "star").frame(minWidth: 18)
-                            }
-                            .buttonStyle(.chunkyPlain).controlSize(.small)
-                            .accessibilityLabel("Make this the keeper")
-                            .help("Make this the keeper and mark the rest")
+                        Button { Feedback.tick(calm: calm); model.setKeeper(group: group.id, member: id) } label: {
+                            Image(systemName: "star").frame(minWidth: 18)
                         }
+                        .buttonStyle(.chunkyPlain).controlSize(.small)
+                        .accessibilityLabel("Make keeper")
+                        .help("Make keeper. The current keeper stays kept until you mark it")
                     }
                 }
             }
@@ -290,7 +310,7 @@ private struct LightCard: View {
 
     private var caption: String {
         if isFavorite { return "♥ Favorite" }
-        if isSuggested && keeping { return "Suggested, not decided" }
+        if isKeeper { return "Keeper" }
         if marked { return model.group(group.id)?.reasons[id]?.first ?? "Nearly the same as the keeper" }
         return "Kept"
     }
@@ -304,7 +324,7 @@ private struct LightCard: View {
             .foregroundStyle(Workshop.heart)
             .padding(.horizontal, 8).padding(.vertical, 4)
             .background(Capsule().fill(Workshop.paper).shadow(color: Workshop.shadow.opacity(0.25), radius: 2, y: 1))
-        } else if keeping && isSuggested {
+        } else if isKeeper {
             tab("KEEPER", symbol: "star.fill", fill: Brand.teal, ink: .white)
         } else if keeping {
             tab("KEPT", symbol: "checkmark", fill: Brand.teal.opacity(0.85), ink: .white)

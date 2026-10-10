@@ -42,6 +42,7 @@ extension VideoPipeline {
         let access = await library.authorization()
         if access == .denied || access == .notDetermined { throw LibraryError.accessDenied }
         guard let item = try await library.item(id) else { return try await skip(id, "No longer in your library") }
+        if item.isFavorite { return try await skip(id, "Favorite, so it was left alone") }
         // Edit detection (I1) needs a modification date and copy reconciliation (I2) needs a creation date.
         guard item.modificationDate != nil, item.creationDate != nil else {
             return try await skip(id, "Missing date information, so it was left alone")

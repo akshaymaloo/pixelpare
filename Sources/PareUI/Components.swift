@@ -176,10 +176,14 @@ struct PlanBar: View {
 
 struct CalmToggle: View {
     @Environment(AppModel.self) private var model
+    var iconOnly = false
     var body: some View {
         @Bindable var m = model
-        Toggle(isOn: $m.calmMode) { Label("Calm", systemImage: "leaf") }
-            .toggleStyle(.button)
+        Toggle(isOn: $m.calmMode) {
+            if iconOnly { Label("Calm mode", systemImage: "leaf").labelStyle(.iconOnly) } else { Label("Calm", systemImage: "leaf") }
+        }
+        .toggleStyle(.button)
+        .accessibilityLabel("Calm mode")
             .help("Calm mode turns off animation, sound and haptics")
             .accessibilityHint("Turns off animation, sound and haptics")
     }

@@ -1,5 +1,6 @@
 import CoreGraphics
 import CoreMedia
+import CryptoKit
 import Foundation
 import Observation
 import PareCore
@@ -41,6 +42,8 @@ public struct WorkProgress: Equatable, Sendable {
 }
 
 public struct RunSummary: Sendable {
+    /// Identifies the run so late results from a removal can't land on a different run's recap.
+    public let id = UUID()
     public struct Copy: Sendable, Identifiable {
         public var id: MediaID { original }
         public var original: MediaID
@@ -99,6 +102,13 @@ public final class AppModel {
     public private(set) var previewErrors: [MediaID: String] = [:]
     var videoEstimates: [EstimateKey: SizeEstimate] = [:]
     var draftKeep: [UUID: Set<MediaID>] = [:]
+    /// The explicit keeper per group; it can never be marked for removal.
+    var keepers: [UUID: MediaID] = [:]
+    /// Unfinished jobs from an earlier session, held back until the user resumes or discards them.
+    public private(set) var recoveredJobs: [OperationJournal.Entry] = []
+    public private(set) var acceptedRecovered: Set<MediaID> = []
+    /// True while originals are being removed; the buttons that could start another removal are disabled.
+    public private(set) var isRemoving = false
 
     public var selectedScreenshots: Set<MediaID> = []
     public var selectedBlurry: Set<MediaID> = []
@@ -161,7 +171,7 @@ public final class AppModel {
         self.library = lib
         let j = OperationJournal(url: Self.journalURL(support, chosen))
         self.journal = j
-        self.pipeline = Self.makePipeline(library: lib, journal: j, support: support)
+        self.pipeline = Self.makePipeline(library: lib, journal: j, support: support, source: chosen)
         if case .folder(let url) = chosen { _ = url.startAccessingSecurityScopedResource(); scopedFolder = url }
     }
 
@@ -174,7 +184,7 @@ public final class AppModel {
         self.library = library
         let j = OperationJournal(url: Self.journalURL(supportDirectory, source))
         self.journal = j
-        self.pipeline = Self.makePipeline(library: library, journal: j, support: supportDirectory)
+        self.pipeline = Self.makePipeline(library: library, journal: j, support: supportDirectory, source: source)
     }
 
     #if os(macOS)
@@ -193,25 +203,36 @@ public final class AppModel {
         }
     }
 
-    private static func makePipeline(library: any MediaLibrary, journal: OperationJournal, support: URL) -> VideoPipeline {
+    private static func makePipeline(library: any MediaLibrary, journal: OperationJournal, support: URL,
+                                     source: LibrarySource) -> VideoPipeline {
         VideoPipeline(library: library, journal: journal,
-                      workspace: JobWorkspace(root: support.appendingPathComponent("Jobs", isDirectory: true)))
+                      workspace: JobWorkspace(root: jobsURL(support, source)))
+    }
+
+    /// A folder's identity is a short hash of its resolved path, so two folders never share a journal, cache or workspace.
+    static func folderKey(_ url: URL) -> String {
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        return SHA256.hash(data: Data(path.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func sourceSuffix(_ s: LibrarySource) -> String {
+        switch s {
+        case .photos: ""
+        case .folder(let url): "-folder-\(folderKey(url))"
+        case .sample: "-sample"
+        }
     }
 
     private static func journalURL(_ dir: URL, _ s: LibrarySource) -> URL {
-        switch s {
-        case .photos: dir.appendingPathComponent("journal.json")
-        case .folder: dir.appendingPathComponent("journal-folder.json")
-        case .sample: dir.appendingPathComponent("journal-sample.json")
-        }
+        dir.appendingPathComponent("journal\(sourceSuffix(s)).json")
+    }
+
+    private static func jobsURL(_ dir: URL, _ s: LibrarySource) -> URL {
+        dir.appendingPathComponent("Jobs\(sourceSuffix(s))", isDirectory: true)
     }
 
     private var cacheURL: URL {
-        switch source {
-        case .photos: supportDirectory.appendingPathComponent("signals.json")
-        case .folder: supportDirectory.appendingPathComponent("signals-folder.json")
-        case .sample: supportDirectory.appendingPathComponent("signals-sample.json")
-        }
+        supportDirectory.appendingPathComponent("signals\(Self.sourceSuffix(source)).json")
     }
 
     public var sourceName: String {
@@ -230,6 +251,10 @@ public final class AppModel {
         // Settle whatever a previous run left behind; unfinished jobs resume only when the user starts a run.
         try? await pipeline.recover(autoResume: false)
         await refreshHistory()
+        let recovered = history.filter { VideoPipeline.isInFlight($0.state) }
+        await pipeline.hold(Set(recovered.map(\.original)))
+        recoveredJobs = recovered
+        acceptedRecovered = []
         if access == .full || access == .limited, scanState == .idle {
             await scan()
             openLaunchScreen()
@@ -280,9 +305,10 @@ public final class AppModel {
         source = newSource
         library = Self.makeLibrary(newSource)
         journal = OperationJournal(url: Self.journalURL(supportDirectory, newSource))
-        pipeline = Self.makePipeline(library: library, journal: journal, support: supportDirectory)
+        pipeline = Self.makePipeline(library: library, journal: journal, support: supportDirectory, source: newSource)
         thumbnails.removeAll()
         resetResults()
+        recoveredJobs = []; acceptedRecovered = []
         scanState = .idle
         path = []
         await start()
@@ -322,7 +348,7 @@ public final class AppModel {
 
     private func resetResults() {
         items = [:]; groups = []; screenshotIDs = []; eligibleVideoIDs = []; skippedVideos = []; blurryIDs = []
-        selectedScreenshots = []; selectedBlurry = []; selectedVideos = []; draftKeep = [:]; videoEstimates = [:]
+        selectedScreenshots = []; selectedBlurry = []; selectedVideos = []; draftKeep = [:]; keepers = [:]; videoEstimates = [:]
         previewErrors = [:]; unanalyzedCount = 0
     }
 
@@ -382,10 +408,17 @@ public final class AppModel {
 
     public func group(_ id: UUID) -> SimilarGroup? { groups.first { $0.id == id } }
 
-    /// Members that will be kept if this group is approved as it currently stands.
+    /// The group's keeper: explicit choice, else the suggestion. Always a member.
+    public func keeper(for g: SimilarGroup) -> MediaID {
+        if let k = keepers[g.id], g.members.contains(k) { return k }
+        return g.suggestedKeeper
+    }
+
+    /// Members that will be kept if this group is approved as it currently stands. Always includes the keeper.
     public func keepSet(for g: SimilarGroup) -> Set<MediaID> {
-        if case .approved(let keep) = g.approval { return keep }
-        return draftKeep[g.id] ?? g.defaultKeep
+        let base: Set<MediaID>
+        if case .approved(let keep) = g.approval { base = keep } else { base = draftKeep[g.id] ?? g.defaultKeep }
+        return base.union([keeper(for: g)])
     }
 
     public func savings(of g: SimilarGroup) -> Int64 {
@@ -404,9 +437,9 @@ public final class AppModel {
 
     public func approveGroup(_ id: UUID) {
         guard let g = group(id) else { return }
-        let keep = keepSet(for: g)
+        let keep = keepSet(for: g).union(g.favorites)
         guard !keep.isEmpty else { return }
-        update(id) { $0.approval = .approved(keep: keep.union($0.favorites)) }
+        update(id) { $0.approval = .approved(keep: keep) }
     }
 
     /// Back to "suggested" so nothing from this group is part of the plan.
@@ -415,28 +448,24 @@ public final class AppModel {
     /// "Keep all" / skip: nothing in the group is ever removed.
     public func skipGroup(_ id: UUID) { update(id) { $0.approval = .skipped } }
 
-    /// Flips a member between keep and remove. Favorites can't be removed and the last kept member can't be unkept.
+    /// Flips a member between kept and marked. The keeper and favorites can't be marked. Changing an approved
+    /// group's removals withdraws its approval so the user approves what they now see.
     public func toggleKeep(group id: UUID, member: MediaID) {
-        guard let g = group(id), !g.favorites.contains(member) else { return }
+        guard let g = group(id), !g.favorites.contains(member), member != keeper(for: g) else { return }
         var keep = keepSet(for: g)
-        if keep.contains(member) {
-            guard keep.count > 1 else { return }
-            keep.remove(member)
-        } else {
-            keep.insert(member)
-        }
+        if keep.contains(member) { keep.remove(member) } else { keep.insert(member) }
         draftKeep[id] = keep
-        if case .approved = g.approval { update(id) { $0.approval = .approved(keep: keep) } }
-        else if g.approval == .skipped { update(id) { $0.approval = .suggested } }
+        if g.approval != .suggested { update(id) { $0.approval = .suggested } }
     }
 
-    /// Keeps only `member` (plus favorites) and marks every other member for removal.
+    /// Makes `member` the keeper. The previous keeper stays kept (unmarked) until the user marks it.
     public func setKeeper(group id: UUID, member: MediaID) {
-        guard let g = group(id) else { return }
-        let keep = Set([member]).union(g.favorites)
+        guard let g = group(id), g.members.contains(member) else { return }
+        let before = keepSet(for: g)
+        keepers[id] = member
+        let keep = before.union([member])
         draftKeep[id] = keep
-        update(id) { $0.approval = .suggested }
-        if case .approved = g.approval { update(id) { $0.approval = .approved(keep: keep) } }
+        if case .approved = g.approval, keep != before { update(id) { $0.approval = .suggested } }
     }
 
     // MARK: Screenshots
@@ -599,8 +628,24 @@ public final class AppModel {
 
     /// Validates the plan, removes approved photos (system confirmation), then creates verified smaller copies of
     /// approved videos. Video originals are never removed here.
+    public var canExecute: Bool { !plan.isEmpty || !acceptedRecovered.isEmpty }
+
+    /// Includes an unfinished job from last time in the next run; the receipt lists it.
+    public func setRecoveredAccepted(_ id: MediaID, _ accepted: Bool) {
+        guard recoveredJobs.contains(where: { $0.original == id }) else { return }
+        if accepted { acceptedRecovered.insert(id) } else { acceptedRecovered.remove(id) }
+    }
+
+    /// Cancels an unfinished job from last time; the original is untouched.
+    public func discardRecovered(_ id: MediaID) async {
+        recoveredJobs.removeAll { $0.original == id }
+        acceptedRecovered.remove(id)
+        await pipeline.cancel(id)
+        await refreshHistory()
+    }
+
     public func executePlan() {
-        guard executionTask == nil else { return }
+        guard executionTask == nil, !isRemoving else { return }
         let plan = self.plan
         do {
             try SafetyCheck.validate(plan: plan, groups: groups, items: items, explicitlyApproved: selectedBlurry)
@@ -608,7 +653,7 @@ public final class AppModel {
             errorMessage = "The plan didn't pass its safety check (\(error)). Nothing was changed."
             return
         }
-        guard !plan.isEmpty else { return }
+        guard canExecute else { return }
         showPlan = false
         stage = .working(WorkProgress(title: "Getting ready", detail: "", fraction: nil))
         executionTask = Task { [weak self] in
@@ -628,18 +673,16 @@ public final class AppModel {
             stage = .working(WorkProgress(
                 title: "Removing \(Format.count(plan.removals.count, "photo"))",
                 detail: "Confirm in the system dialog. Nothing is removed until you do.", fraction: nil))
-            let ids = plan.removals.sorted()
-            do {
-                try await library.delete(ids)
-                summary.removedCount = ids.count
-                summary.removedBytes = ids.reduce(0) { $0 + (items[$1]?.byteSize ?? 0) }
-            } catch {
-                summary.notes.append("Photos weren't removed: \(error.localizedDescription)")
-            }
+            await removePhotos(plan.removals.sorted(), into: &summary)
         }
 
-        let ids = plan.videoJobs.keys.filter { items[$0] != nil }.sorted()
+        let planIDs = plan.videoJobs.keys.filter { items[$0] != nil }.sorted()
+        let recoveredIDs = acceptedRecovered.filter { id in recoveredJobs.contains { $0.original == id } }.sorted()
+        let ids = planIDs + recoveredIDs.filter { !planIDs.contains($0) }
         if !ids.isEmpty, !Task.isCancelled {
+            await pipeline.release(Set(recoveredIDs))
+            recoveredJobs.removeAll { recoveredIDs.contains($0.original) }
+            acceptedRecovered.subtract(recoveredIDs)
             await pipeline.resume()
             let stream = pipeline.events()
             jobOrder = ids
@@ -679,6 +722,49 @@ public final class AppModel {
         }
         await refreshHistory()
         stage = .done(summary)
+    }
+
+    /// Deletes photos after re-checking each one right now (a favorite since the scan is dropped), then reports
+    /// only what the library confirms is gone.
+    private func removePhotos(_ requested: [MediaID], into summary: inout RunSummary) async {
+        var deletable: [MediaID] = []
+        var protected = 0, unconfirmed = 0
+        for id in requested {
+            do {
+                guard let fresh = try await library.item(id) else { continue }
+                if fresh.isFavorite || fresh.kind == .video { protected += 1 } else { deletable.append(id) }
+            } catch { unconfirmed += 1 }
+        }
+        if protected > 0 {
+            summary.notes.append("\(Format.count(protected, "photo")) became a favorite and was left alone.")
+        }
+        if unconfirmed > 0 {
+            summary.notes.append("\(Format.count(unconfirmed, "photo")) couldn't be checked and was left alone.")
+        }
+        guard !deletable.isEmpty else { return }
+        var deleteError: Error?
+        do { try await library.delete(deletable) } catch { deleteError = error }
+        var removed = 0
+        var bytes: Int64 = 0
+        for id in deletable {
+            // Only a definite "not found" counts as removed; an error means unconfirmed.
+            guard await isGone(id) else { continue }
+            removed += 1
+            bytes += items[id]?.byteSize ?? 0
+        }
+        summary.removedCount = removed
+        summary.removedBytes = bytes
+        if removed < deletable.count {
+            let rest = deletable.count - removed
+            let why = deleteError.map { ": \($0.localizedDescription)" } ?? ""
+            summary.notes.append(removed == 0
+                ? "Photos weren't removed\(why)"
+                : "Removed \(removed) of \(deletable.count) photos; \(Format.count(rest, "photo")) still in your library\(why).")
+        }
+    }
+
+    private func isGone(_ id: MediaID) async -> Bool {
+        do { return try await library.item(id) == nil } catch { return false }
     }
 
     /// Turns the pipeline's events into per-video rows for the press and the running totals.
@@ -750,17 +836,22 @@ public final class AppModel {
 
     /// Explicit user action: remove originals whose smaller copy is verified. The journal has the final say.
     public func removeVideoOriginals() async {
-        guard case .done(var summary) = stage else { return }
-        let ids = summary.pendingOriginals
-        let result = await pipeline.removeOriginals(ids)
-        let removed = Set(result.removed)
-        for i in summary.copies.indices where removed.contains(summary.copies[i].original) {
-            summary.copies[i].originalRemoved = true
+        guard !isRemoving, case .done(let current) = stage else { return }
+        isRemoving = true
+        defer { isRemoving = false }
+        let runID = current.id
+        let result = await pipeline.removeOriginals(current.pendingOriginals)
+        // Results belong to the run that asked; a different recap on screen now must not be touched.
+        if case .done(var summary) = stage, summary.id == runID {
+            let removed = Set(result.removed)
+            for i in summary.copies.indices where removed.contains(summary.copies[i].original) {
+                summary.copies[i].originalRemoved = true
+            }
+            if !result.declined.isEmpty { summary.notes.append("Nothing was removed; you can approve again any time.") }
+            if !result.refused.isEmpty { summary.notes.append("\(result.refused.count) originals were kept (not verified, or a favorite).") }
+            if !result.failed.isEmpty { summary.notes.append("\(result.failed.count) originals couldn't be removed and were kept.") }
+            stage = .done(summary)
         }
-        if !result.declined.isEmpty { summary.notes.append("Nothing was removed; you can approve again any time.") }
-        if !result.refused.isEmpty { summary.notes.append("\(result.refused.count) originals were kept (not verified).") }
-        if !result.failed.isEmpty { summary.notes.append("\(result.failed.count) originals couldn't be removed and were kept.") }
-        stage = .done(summary)
         await refreshHistory()
     }
 
@@ -780,6 +871,7 @@ public final class AppModel {
     }
 
     public func finishRun() {
+        guard !isRemoving else { return }
         stage = .browsing
         path = []
         rescan()
