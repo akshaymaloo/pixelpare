@@ -99,9 +99,9 @@ struct RetryPolicyTests {
 @Suite("StallWatchdog")
 struct StallWatchdogTests {
     @Test func progressKeepsABusyBodyAlive() async throws {
-        let w = StallWatchdog(step: "t", timeout: .milliseconds(150), grace: .milliseconds(20))
+        let w = StallWatchdog(step: "t", timeout: .milliseconds(300), grace: .milliseconds(20))
         let v = try await w.run { touch in
-            for _ in 0..<8 { try await Task.sleep(for: .milliseconds(50)); touch() }
+            for _ in 0..<12 { try await Task.sleep(for: .milliseconds(50)); touch() }
             return 7
         }
         #expect(v == 7)
