@@ -82,7 +82,7 @@ Old screenshots are a later, explicitly reviewed paper pile—not automatically 
 
 **Photo review:** a large keeper/candidate pair with a group strip; swipes slot *marks* into a pending tray. **Keep group** completes the puzzle equally.
 
-**Video:** three clearly labeled preset cartridges; compare synchronized motion before applying.
+**Video:** three clearly labeled preset cartridges; check quality on a 3-second sample (drag-to-compare) before applying. Plain wording: pick how much smaller, pick videos, make copies.
 
 **Recap:** “5 groups reviewed,” then actual outcomes—not a deletion score.
 

@@ -152,6 +152,7 @@ struct PlanBar: View {
             VStack(alignment: .leading, spacing: 2) {
                 Silk("Pending plan")
                 Text(summary(plan)).font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
+                    .lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer(minLength: 8)
             if showNote {
@@ -160,7 +161,7 @@ struct PlanBar: View {
                     .multilineTextAlignment(.trailing)
             }
             Button("Review receipt") { model.showPlan = true }
-                .buttonStyle(.chunky).disabled(plan.isEmpty).fixedSize()
+                .buttonStyle(.chunky).disabled(plan.isEmpty).lineLimit(1).fixedSize()
         }
         .padding(.horizontal, 20).padding(.vertical, 10)
         .workshopModule(radius: 20, screws: false)

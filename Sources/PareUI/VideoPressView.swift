@@ -19,6 +19,7 @@ struct VideoPressView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        Text("Make smaller copies of big videos.").font(.callout).foregroundStyle(Workshop.ink2)
                         if !model.recoveredJobs.isEmpty { RecoveredSection() }
                         controls
                         eligibleList
@@ -48,36 +49,16 @@ struct VideoPressView: View {
         let layout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .top, spacing: 24))
         return layout {
             VStack(spacing: 10) {
-                Silk("Step 1 · Settings")
+                Silk("Step 1 · How much smaller?")
                 PresetDial(preset: Bindable(model).preset)
             }
             .frame(maxWidth: compact ? .infinity : 330)
             VStack(alignment: .leading, spacing: 10) {
                 Text(model.preset.title).font(.system(.title2, design: .rounded, weight: .heavy)).foregroundStyle(Workshop.ink)
                 Text(model.preset.summary).font(.callout).foregroundStyle(Workshop.ink2)
-                let r = model.videoSavings(preset: model.preset)
-                let picked = model.applicableSelectedVideos.count
-                if picked == 0 {
-                    Text("Pick videos below").font(.system(.title3, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
-                    Text("All \(model.eligibleVideoIDs.count) eligible would save about \(Format.range(r)) (estimate).")
-                        .font(.footnote).foregroundStyle(Workshop.ink2)
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Saves about \(Format.range(r))").font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(Workshop.ink)
-                        Chip(text: "Estimate", color: Workshop.amberDark)
-                    }
-                    Text("Space saved once you remove the originals, for the \(picked) \(picked == 1 ? "video" : "videos") you picked.")
-                        .font(.footnote).foregroundStyle(Workshop.ink2)
-                }
+                savings
                 Divider()
-                Label {
-                    Text("**The press makes a second copy.** Your original stays in your library until the new one is verified and you approve removing it. Keeping both is fine. It just doesn't save space.")
-                        .font(.footnote).foregroundStyle(Workshop.ink)
-                } icon: { Image(systemName: "square.on.square").foregroundStyle(Brand.teal) }
-                Label {
-                    Text("Sizes start as estimates, firm up when you preview a few seconds, and are final once the copy is made.")
-                        .font(.footnote).foregroundStyle(Workshop.ink2)
-                } icon: { Image(systemName: "gauge.with.dots.needle.33percent").foregroundStyle(Workshop.amberDark) }
+                howItWorks
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -85,16 +66,54 @@ struct VideoPressView: View {
         .workshopModule()
     }
 
+    private var savings: some View {
+        let r = model.videoSavings(preset: model.preset)
+        let picked = model.applicableSelectedVideos.count
+        return VStack(alignment: .leading, spacing: 4) {
+            if picked == 0 {
+                Text("Could save about").font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
+                Text(Format.range(r)).font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(Workshop.ink)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Text("if you pick all \(model.eligibleVideoIDs.count)").font(.footnote).foregroundStyle(Workshop.ink2)
+            } else {
+                Text("Saves about").font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
+                HStack(spacing: 8) {
+                    Text(Format.range(r)).font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(Workshop.ink)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Chip(text: "Estimate", color: Workshop.amberDark).fixedSize()
+                }
+                Text("For \(Format.count(picked, "video")), once the originals are removed.").font(.footnote).foregroundStyle(Workshop.ink2)
+            }
+        }
+    }
+
+    private var howItWorks: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Silk("How it works")
+            step(1, "Makes a smaller copy")
+            step(2, "Checks it plays the same")
+            step(3, "You decide when to remove the original")
+            Text("Sizes are estimates until you check a sample or the copy is made.")
+                .font(.caption).foregroundStyle(Workshop.ink3).padding(.top, 2)
+        }
+    }
+
+    private func step(_ n: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("\(n)").font(.system(.caption, design: .rounded, weight: .heavy)).foregroundStyle(.white)
+                .frame(width: 20, height: 20).background(Circle().fill(Brand.teal))
+            Text(text).font(.footnote).foregroundStyle(Workshop.ink)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     // MARK: Eligible videos
 
     private var eligibleList: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Silk("Step 2 · Pick videos")
-                Spacer()
-                Button("Select all") { model.selectAllVideos() }.buttonStyle(.chunkyPlain).controlSize(.small)
-                Button("Clear") { model.clearVideos() }.buttonStyle(.chunkyPlain).controlSize(.small)
-                    .disabled(model.selectedVideos.isEmpty)
+            ViewThatFits(in: .horizontal) {
+                HStack { Silk("Step 2 · Pick videos").fixedSize(); Spacer(); pickButtons }
+                VStack(alignment: .leading, spacing: 8) { Silk("Step 2 · Pick videos"); pickButtons }
             }
             .padding(.bottom, 6)
             ForEach(model.eligibleVideoIDs, id: \.self) { id in
@@ -107,6 +126,15 @@ struct VideoPressView: View {
         }
         .padding(20)
         .workshopModule()
+    }
+
+    private var pickButtons: some View {
+        HStack(spacing: 8) {
+            Button("Select all") { model.selectAllVideos() }.buttonStyle(.chunkyPlain).controlSize(.small)
+            Button("Clear") { model.clearVideos() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                .disabled(model.selectedVideos.isEmpty)
+        }
+        .lineLimit(1).fixedSize()
     }
 
     private var skipped: some View {
@@ -195,7 +223,6 @@ struct PresetDial: View {
                     .buttonStyle(.plain)
                 }
             }
-            Text(preset.shortSummary).font(.system(size: 11, design: .monospaced)).foregroundStyle(Workshop.ink2)
         }
     }
 
@@ -209,7 +236,6 @@ struct PresetDial: View {
 
 private struct VideoRow: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.horizontalSizeClass) private var sizeClass
     let id: MediaID
     let compare: () -> Void
 
@@ -218,71 +244,93 @@ private struct VideoRow: View {
         let applicable = model.isApplicable(id, preset: model.preset)
         let selected = model.selectedVideos.contains(id) && applicable
         let est = model.sizeEstimate(for: id)
-        HStack(alignment: .top, spacing: 12) {
+        HStack(spacing: 4) {
             Button { model.toggleVideo(id) } label: {
-                Image(systemName: selected ? "checkmark.square.fill" : "square")
-                    .font(.title2).foregroundStyle(selected ? Brand.teal : Workshop.ink3)
+                HStack(spacing: 12) {
+                    PolaroidFrame(corner: 5, border: 3, bottom: 3) {
+                        ThumbnailView(id: id, maxPixel: 200).frame(width: 72, height: 54)
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        if let d = item?.duration {
+                            Text(Format.duration(d)).font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundStyle(.white)
+                                .padding(.horizontal, 4).padding(.vertical, 1).background(Capsule().fill(.black.opacity(0.65)))
+                                .offset(x: -2, y: -2)
+                        }
+                    }
+                    .overlay(alignment: .topLeading) { MarkBadge(on: selected, disabled: !applicable).offset(x: -6, y: -6) }
+                    details(item, applicable: applicable, est: est)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain).disabled(!applicable)
             .accessibilityLabel("Press \(model.title(for: id))")
             .accessibilityValue(selected ? "Selected" : "Not selected")
 
-            PolaroidFrame(corner: 5, border: 3, bottom: 3) {
-                ThumbnailView(id: id, maxPixel: 200).frame(width: 72, height: 54)
-            }
-            .overlay(alignment: .bottomTrailing) {
-                if let d = item?.duration {
-                    Text(Format.duration(d)).font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundStyle(.white)
-                        .padding(.horizontal, 4).padding(.vertical, 1).background(Capsule().fill(.black.opacity(0.65)))
-                        .offset(x: -2, y: -2)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(model.title(for: id)).font(.system(.headline, design: .rounded)).foregroundStyle(Workshop.ink).lineLimit(1)
-                if let item { Text(Format.videoDetail(item)).font(.caption).foregroundStyle(Workshop.ink2) }
-                if applicable, let est, let size = item?.byteSize {
-                    HStack(spacing: 6) {
-                        Text("\(Format.bytes(size)) → ≈ \(Format.range(est.low...est.high))")
-                            .font(.system(.footnote, design: .monospaced, weight: .semibold)).foregroundStyle(Workshop.ink)
-                        stateChip(est.state)
-                    }
-                } else if !applicable {
-                    Text("\(model.preset.title) isn't offered for this video: it's already at or below 1080p.")
-                        .font(.caption).foregroundStyle(Workshop.ink3)
-                }
-                if applicable {
-                    HStack(spacing: 8) {
-                        if model.previewing.contains(id) {
-                            ProgressView().controlSize(.small)
-                            Text("Encoding a few seconds…").font(.caption).foregroundStyle(Workshop.ink2)
-                        } else {
-                            Button("Preview size") { Task { await model.requestPreview(for: id) } }
-                                .buttonStyle(.chunkyPlain).controlSize(.small)
-                            Button("Compare") { compare() }.buttonStyle(.chunkyPlain).controlSize(.small)
-                        }
-                    }
-                    .padding(.top, 2)
-                }
-                if let err = model.previewErrors[id] {
-                    Text(err).font(.caption).foregroundStyle(Workshop.amberDark)
-                }
-                if item?.isLocal == false {
-                    Label("In iCloud. It's downloaded first, then skipped if it's HDR.", systemImage: "icloud.and.arrow.down")
-                        .font(.caption).foregroundStyle(Workshop.ink2)
-                }
-            }
-            Spacer(minLength: 0)
+            if applicable { trailing }
         }
         .padding(.vertical, 8)
         .opacity(applicable ? 1 : 0.6)
     }
 
-    @ViewBuilder private func stateChip(_ state: SizeEstimate.State) -> some View {
+    @ViewBuilder private var trailing: some View {
+        if model.previewing.contains(id) {
+            ProgressView().controlSize(.small).frame(width: 44, height: 44)
+        } else {
+            Button(action: compare) {
+                Image(systemName: "eye").font(.system(.body, weight: .semibold)).foregroundStyle(Brand.teal)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Check quality of \(model.title(for: id))")
+        }
+    }
+
+    private func details(_ item: MediaItem?, applicable: Bool, est: SizeEstimate?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(model.title(for: id)).font(.system(.headline, design: .rounded)).foregroundStyle(Workshop.ink).lineLimit(1)
+            if let item {
+                Text(Format.videoDetail(item)).font(.caption).foregroundStyle(Workshop.ink2).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            if applicable, let est, let size = item?.byteSize {
+                let after = Format.range(est.low...est.high)
+                let saved = Format.range(max(0, size - est.high)...max(0, size - est.low))
+                ViewThatFits(in: .horizontal) {
+                    Text("\(Format.bytes(size)) → ≈ \(after)").lineLimit(1).fixedSize()
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("\(Format.bytes(size)) →")
+                        Text("≈ \(after)").lineLimit(1).minimumScaleFactor(0.6)
+                    }
+                }
+                .font(.system(.footnote, design: .monospaced, weight: .semibold)).foregroundStyle(Workshop.ink)
+                let saves = size - est.high < 1_000_000 ? "saves little" : "saves ≈ \(saved)"
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 5) {
+                        Text(saves).foregroundStyle(Workshop.tealDark)
+                        Text(stateWord(est.state)).foregroundStyle(Workshop.ink3)
+                    }
+                    Text(saves).foregroundStyle(Workshop.tealDark)
+                }
+                .font(.system(.caption, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.6)
+            } else if !applicable {
+                Text("Already 1080p or smaller — \(model.preset.title) doesn't apply.")
+                    .font(.caption).foregroundStyle(Workshop.ink3).lineLimit(2)
+            }
+            if let err = model.previewErrors[id] {
+                Text(err).font(.caption).foregroundStyle(Workshop.amberDark).lineLimit(2)
+            }
+            if item?.isLocal == false {
+                Label("In iCloud · downloads first", systemImage: "icloud.and.arrow.down")
+                    .font(.caption).foregroundStyle(Workshop.ink2).lineLimit(1).minimumScaleFactor(0.8)
+            }
+        }
+    }
+
+    private func stateWord(_ state: SizeEstimate.State) -> String {
         switch state {
-        case .estimate: Chip(text: "Estimate", color: Workshop.amberDark)
-        case .previewReady: Chip(text: "Preview ready", color: Workshop.blueDark)
-        case .final: Chip(text: "Final", color: Workshop.tealDark)
+        case .estimate: "estimate"
+        case .previewReady: "measured"
+        case .final: "final"
         }
     }
 }
@@ -326,12 +374,28 @@ private struct PressBar: View {
             .background(.regularMaterial)
     }
 
+    private func summary(_ count: Int) -> String {
+        if count == 0 {
+            return model.acceptedRecovered.isEmpty ? "No videos picked"
+                : "\(Format.count(model.acceptedRecovered.count, "unfinished video")) to resume"
+        }
+        let saves = Format.range(model.videoSavings(preset: model.preset))
+        return "\(Format.count(count, "video")) · \(model.preset.title) · saves ≈ \(saves)"
+    }
+
+    private func shortSummary(_ count: Int) -> String {
+        count == 0 ? summary(count) : "\(Format.count(count, "video")) · \(model.preset.title)"
+    }
+
     private func bar(_ count: Int, _ plan: CleanupPlan, long: Bool) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
-                Silk("Step 3 · Press")
-                Text(count == 0 ? (model.acceptedRecovered.isEmpty ? "No videos picked" : "\(Format.count(model.acceptedRecovered.count, "unfinished video")) to resume") : "\(Format.count(count, "video")) · \(model.preset.title)")
-                    .font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
+                Silk("Step 3 · Make copies")
+                ViewThatFits(in: .horizontal) {
+                    Text(summary(count)).lineLimit(1).fixedSize()
+                    Text(shortSummary(count)).lineLimit(1).minimumScaleFactor(0.75)
+                }
+                .font(.system(.headline, design: .rounded, weight: .bold)).foregroundStyle(Workshop.ink)
             }
             Spacer(minLength: 8)
             if long {
@@ -340,7 +404,7 @@ private struct PressBar: View {
                     .multilineTextAlignment(.trailing)
             }
             VStack(alignment: .trailing, spacing: 4) {
-                Button(count == 0 ? "Receipt" : "Press \(count == 1 ? "a smaller copy" : "\(count) smaller copies")") {
+                Button("Review") {
                     model.showPlan = true
                 }
                 .buttonStyle(.chunky).disabled(!model.canExecute)

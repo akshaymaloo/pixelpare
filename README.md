@@ -18,7 +18,7 @@ An original video is only removed after its smaller copy has been imported, veri
 | Tray | What it does |
 |---|---|
 | **Lookalikes** (light table) | Groups exact copies, near-identical and similar shots, then suggests a keeper with reasons ("Sharper", …). You approve each group. |
-| **Video press** | Makes HEVC copies at Gentle / Balanced / Compact (≤ 1080p). Shows estimates and an A/B preview, then imports the copy with its date, location, favorite and albums kept. The original is removed only after you approve. |
+| **Video press** | Makes HEVC copies at Gentle / Balanced / Compact (≤ 1080p). Shows estimates and a "Check quality" A/B sample, then imports the copy with its date, location, favorite and albums kept. The original is removed only after you approve. |
 | **Old screenshots** | Screenshots older than 30 days. |
 | **Screen recordings** | Screen recordings older than 30 days, biggest first. Removal needs your explicit pick; favorites are never offered. |
 | **Biggest things** | The 50 largest photos and videos over 10 MB. Send a video to the press, or mark any item for removal. |
@@ -33,7 +33,7 @@ How it stays safe:
 - The video pipeline is journaled, retried and resumable (see [docs/resilience.md](docs/resilience.md)).
 - *Calm mode* turns off animation, sound and haptics.
 - On iOS, gestures only mark or move items, never delete: swipe up/down to mark, swipe sideways between groups,
-  long-press to peek, double-tap to make the keeper, and drag the compare divider.
+  long-press to peek, double-tap to make the keeper, and drag the quality-check divider.
 
 ## Testing on iPhone with real photos
 

@@ -34,11 +34,17 @@ private struct ReceiptLine: View {
     var strong = false
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(label).font(.system(strong ? .headline : .subheadline, design: .monospaced, weight: strong ? .bold : .regular))
-                Spacer(minLength: 12)
-                Text(value).font(.system(strong ? .headline : .subheadline, design: .monospaced, weight: .bold))
-                    .multilineTextAlignment(.trailing)
+            let font = Font.system(strong ? .headline : .subheadline, design: .monospaced, weight: strong ? .bold : .regular)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(label).font(font).lineLimit(1).fixedSize()
+                    Spacer(minLength: 12)
+                    Text(value).font(font.weight(.bold)).fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label).font(font)
+                    Text(value).font(font.weight(.bold))
+                }
             }
             if let detail { Text(detail).font(.caption).foregroundStyle(Workshop.ink2) }
         }
@@ -119,7 +125,7 @@ struct PlanReceiptView: View {
                                     detail: "You chose to resume these. They are finished and verified the same way; originals stay until you approve.")
                     }
                     let favorites = model.protectedFavoriteCount
-                    ReceiptLine(label: "Favorites are never included", value: favorites == 0 ? "none skipped" : "\(favorites) protected",
+                    ReceiptLine(label: "Favorites", value: favorites == 0 ? "never removed" : "\(favorites) protected",
                                 detail: favorites == 0 ? "No favorites were in the approved groups." : "Favorites in approved groups were skipped.")
                     Rule()
                     ReceiptLine(label: "Estimated space", value: "≈ \(Format.range(model.planSavings))", strong: true)
@@ -136,12 +142,12 @@ struct PlanReceiptView: View {
                     Banner(symbol: "info.circle", tint: Brand.blue, text: "A pressed video is a new item: date, location, favorite and albums are carried over, but it won't be in shared albums or Memories, and links to the old one break. Videos in iCloud are downloaded first. The press keeps running while PixelPare is open and picks up where it left off if it quits.")
                 }
                 if let err = model.errorMessage { Text(err).font(.callout).foregroundStyle(.red) }
-                HStack {
-                    Button("Back to the bench") { model.errorMessage = nil; dismiss() }
-                        .buttonStyle(.chunkyPlain).keyboardShortcut(.cancelAction)
-                    Spacer()
-                    Button(confirmLabel(plan.removals.count, videos.count, recovered.count, stills.count)) { model.executePlan() }
-                        .buttonStyle(.chunky).keyboardShortcut(.defaultAction).disabled(!model.canExecute || model.isRemoving)
+                ViewThatFits(in: .horizontal) {
+                    HStack { backButton; Spacer(); confirmButton(plan, videos, recovered, stills) }
+                    VStack(spacing: 10) {
+                        confirmButton(plan, videos, recovered, stills).frame(maxWidth: .infinity)
+                        backButton.frame(maxWidth: .infinity)
+                    }
                 }
             }
             .padding(22)
@@ -151,6 +157,17 @@ struct PlanReceiptView: View {
         #if os(macOS)
         .frame(minWidth: 560, minHeight: 560)
         #endif
+    }
+
+    private var backButton: some View {
+        Button("Back to the bench") { model.errorMessage = nil; dismiss() }
+            .buttonStyle(.chunkyPlain).keyboardShortcut(.cancelAction).lineLimit(1).fixedSize()
+    }
+
+    private func confirmButton(_ plan: CleanupPlan, _ videos: [MediaID], _ recovered: [OperationJournal.Entry], _ stills: [MediaID]) -> some View {
+        Button(confirmLabel(plan.removals.count, videos.count, recovered.count, stills.count)) { model.executePlan() }
+            .buttonStyle(.chunky).keyboardShortcut(.defaultAction).disabled(!model.canExecute || model.isRemoving)
+            .lineLimit(1).fixedSize()
     }
 
     private func bytes(_ ids: Set<MediaID>) -> Int64 { ids.reduce(0) { $0 + (model.items[$1]?.byteSize ?? 0) } }

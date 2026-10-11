@@ -10,6 +10,7 @@ struct ReviewGridView: View {
 
     let title: String
     let blurb: String
+    var details: String?
     let emptyTitle: String
     let emptyMessage: String
     let symbol: String
@@ -35,6 +36,13 @@ struct ReviewGridView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(blurb).font(.callout).foregroundStyle(Workshop.ink2)
+                        if let details {
+                            DisclosureGroup("Details") {
+                                Text(details).font(.footnote).foregroundStyle(Workshop.ink2)
+                                    .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 4)
+                            }
+                            .font(.footnote.weight(.semibold)).foregroundStyle(Workshop.ink).tint(Workshop.ink)
+                        }
                         header
                         HStack {
                             Silk("\(selected.count) of \(ids.count) marked")
@@ -166,7 +174,8 @@ struct LivePhotosView: View {
         let unfinished = model.unfinishedStillIDs.intersection(model.livePhotoIDs)
         ReviewGridView(
             title: "Live Photos",
-            blurb: "Make a still photo from a Live Photo and drop its motion clip (about 2–4 MB each). The still keeps the date, location, favorite mark and albums, but the motion and sound are gone, along with any Loop, Bounce or Long Exposure effect. The Live Photo goes to Recently Deleted only after the still is verified. Edited Live Photos aren't offered.",
+            blurb: "Turn Live Photos into still photos and drop the motion clip (about 2–4 MB each). The still keeps date, place, favorite and albums.",
+            details: "Motion and sound are lost, along with any Loop, Bounce or Long Exposure effect. The Live Photo goes to Recently Deleted only after the still is verified. Edited Live Photos aren't offered.",
             emptyTitle: "No Live Photos to convert", emptyMessage: "No unedited Live Photos were found.",
             symbol: "livephoto", ids: model.livePhotoIDs, selected: model.selectedStills,
             toggle: { model.toggleStill($0) }, selectAll: { model.selectAllStills() },

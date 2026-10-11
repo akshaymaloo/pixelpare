@@ -50,36 +50,72 @@ struct BiggestView: View {
         let item = model.items[id]
         let marked = model.selectedBiggest.contains(id)
         let favorite = item?.isFavorite == true
-        return HStack(spacing: 12) {
-            PolaroidFrame(corner: 4, border: 3, bottom: 3) { ThumbnailView(id: id, maxPixel: 160).frame(width: 52, height: 52) }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(model.title(for: id)).font(.subheadline.weight(.semibold)).foregroundStyle(Workshop.ink).lineLimit(1)
-                HStack(spacing: 6) {
-                    Chip(text: item.map(kindName) ?? "Item")
-                    if favorite { Chip(text: "Favorite", color: Workshop.amberDark) }
-                }
-            }
-            Spacer(minLength: 6)
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(Format.bytes(item?.byteSize ?? 0)).font(.system(.headline, design: .monospaced, weight: .bold))
-                    .foregroundStyle(Workshop.ink)
-                HStack(spacing: 6) {
-                    if model.canPress(id) {
-                        Button("Press") { model.pressFromBiggest(id) }.buttonStyle(.chunkyPlain).controlSize(.small)
-                            .accessibilityIdentifier("biggest-press")
+        return HStack(spacing: 8) {
+            Button { Feedback.tick(calm: calm); model.toggleBiggest(id) } label: {
+                HStack(spacing: 12) {
+                    PolaroidFrame(corner: 5, border: 3, bottom: 3) { ThumbnailView(id: id, maxPixel: 160).frame(width: 56, height: 56) }
+                        .overlay(alignment: .topLeading) { MarkBadge(on: marked, disabled: favorite).offset(x: -6, y: -6) }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Format.bytes(item?.byteSize ?? 0))
+                            .font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(Workshop.ink)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        Text(model.title(for: id)).font(.subheadline.weight(.semibold)).foregroundStyle(Workshop.ink)
+                            .lineLimit(1)
+                        ViewThatFits(in: .horizontal) {
+                            dateLine(item, id: id, favorite: favorite, stacked: false)
+                            dateLine(item, id: id, favorite: favorite, stacked: true)
+                        }
                     }
-                    Button(marked ? "Unmark" : "Mark") { Feedback.tick(calm: calm); model.toggleBiggest(id) }
-                        .buttonStyle(.chunkyPlain).controlSize(.small).disabled(favorite)
-                        .accessibilityIdentifier("biggest-mark")
+                    Spacer(minLength: 0)
                 }
-                .fixedSize()
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).disabled(favorite)
+            .accessibilityIdentifier("biggest-mark")
+            .accessibilityLabel("\(marked ? "Unmark" : "Mark") \(model.title(for: id)), \(item.map(kindName) ?? "item"), \(Format.bytes(item?.byteSize ?? 0))")
+            .accessibilityValue(marked ? "Marked for removal" : (favorite ? "Favorite, can't be marked" : "Not marked"))
+            if model.canPress(id) {
+                Button { model.pressFromBiggest(id) } label: {
+                    Label("Press", systemImage: "film.stack").labelStyle(.titleAndIcon)
+                        .font(.system(.footnote, design: .rounded, weight: .bold)).lineLimit(1)
+                        .padding(.horizontal, 10).frame(minHeight: 44)
+                }
+                .buttonStyle(.plain).foregroundStyle(Brand.teal).fixedSize()
+                .accessibilityIdentifier("biggest-press")
+                .accessibilityLabel("Press \(model.title(for: id)) into a smaller copy")
             }
         }
         .padding(.vertical, 8)
         .opacity(marked ? 0.85 : 1)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(model.title(for: id)), \(item.map(kindName) ?? "item"), \(Format.bytes(item?.byteSize ?? 0))")
-        .accessibilityValue(marked ? "Marked for removal" : "Not marked")
+    }
+
+    private func dateLine(_ item: MediaItem?, id: MediaID, favorite: Bool, stacked: Bool) -> some View {
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 6))
+        return layout {
+            // The title is usually the date already.
+            if model.title(for: id) != Format.date(item?.creationDate) {
+                Text(Format.date(item?.creationDate)).font(.caption).foregroundStyle(Workshop.ink2).lineLimit(1).fixedSize()
+            }
+            HStack(spacing: 4) {
+                Chip(text: item.map(kindName) ?? "Item")
+                if favorite { Chip(text: "Favorite", color: Workshop.amberDark) }
+            }
+            .fixedSize()
+        }
+    }
+}
+
+/// Round checkmark on a thumbnail: filled teal when on, hollow when off.
+struct MarkBadge: View {
+    let on: Bool
+    var disabled = false
+    var body: some View {
+        Image(systemName: on ? "checkmark.circle.fill" : "circle")
+            .font(.title3).symbolRenderingMode(.palette)
+            .foregroundStyle(on ? .white : Workshop.ink3, on ? Brand.teal : Workshop.paper)
+            .background(Circle().fill(Workshop.paper).padding(2))
+            .opacity(disabled ? 0.35 : 1)
+            .accessibilityHidden(true)
     }
 }
 

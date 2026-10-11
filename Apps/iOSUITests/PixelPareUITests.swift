@@ -171,16 +171,16 @@ final class PixelPareUITests: XCTestCase {
     func testBurstsTrayApprove() throws { assertTrayMarks(screen: "bursts", button: "burst-approve", snapName: "24-bursts") }
     func testLivePhotosTrayMarkAll() throws { assertTrayMarks(screen: "live", button: "live-mark-all", snapName: "25-live") }
 
-    /// Regression: the Press and Mark buttons in the Biggest tray wrapped mid-word ("Pres/s", "Mar/k").
+    /// Regression: the Press capsule in the Biggest tray wrapped mid-word, and the dates were cut off.
     func testBiggestButtonsStayOnOneLine() throws {
         launch(screen: "biggest")
         let mark = app.buttons.matching(identifier: "biggest-mark").firstMatch
         XCTAssertTrue(mark.waitForExistence(timeout: 20))
         let press = app.buttons.matching(identifier: "biggest-press").firstMatch
         XCTAssertTrue(press.exists, "A pressable video should show a Press button")
-        XCTAssertLessThan(mark.frame.height, 56, "Mark label wraps: \(mark.frame)")
         XCTAssertLessThan(press.frame.height, 56, "Press label wraps: \(press.frame)")
-        XCTAssertLessThanOrEqual(press.frame.maxX, mark.frame.minX + 1, "Press and Mark overlap")
+        XCTAssertLessThanOrEqual(mark.frame.maxX, press.frame.minX + 1, "Row and Press overlap")
+        XCTAssertLessThanOrEqual(press.frame.maxX, app.windows.firstMatch.frame.width, "Press runs off screen")
         snap("26-biggest-buttons")
     }
 
@@ -269,9 +269,25 @@ final class PixelPareUITests: XCTestCase {
 
     func testPressShowsPickHintWhenNothingSelected() throws {
         launch(screen: "press")
-        XCTAssertTrue(app.staticTexts["Pick videos below"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Could save about"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["Pick at least one video"].exists)
         XCTAssertFalse(app.buttons["Review receipt"].exists)
+    }
+
+    func testVideoRowTogglesAndOpensCheckQuality() throws {
+        launch(screen: "press")
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Press '")).firstMatch
+        XCTAssertTrue(scrollUntilVisible(row))
+        XCTAssertEqual(row.value as? String, "Not selected")
+        row.tap()
+        XCTAssertEqual(row.value as? String, "Selected")
+        let check = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Check quality of'")).firstMatch
+        XCTAssertTrue(check.exists)
+        XCTAssertGreaterThanOrEqual(check.frame.height, 44)
+        check.tap()
+        // Never tap the sample button: it would start a real encode.
+        XCTAssertTrue(app.buttons["Make a 3‑second sample"].waitForExistence(timeout: 10))
+        app.buttons["Done"].tap()
     }
 
     // MARK: Receipt (sample only; the plan has photos only, so no video confirm exists here)
@@ -283,7 +299,7 @@ final class PixelPareUITests: XCTestCase {
         snap("40-receipt")
         XCTAssertTrue(app.staticTexts["Lookalikes removed"].exists)
         XCTAssertTrue(app.staticTexts["Old screenshots removed"].exists)
-        XCTAssertTrue(app.staticTexts["Favorites are never included"].exists)
+        XCTAssertTrue(app.staticTexts["Favorites"].exists)
         remove.tap()
         Thread.sleep(forTimeInterval: 2)
         snap("41-after-remove-tap")

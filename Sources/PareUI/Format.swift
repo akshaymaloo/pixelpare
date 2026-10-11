@@ -11,6 +11,7 @@ enum Brand {
 
 enum Format {
     static func bytes(_ b: Int64) -> String {
+        if b <= 0 { return "0 KB" }
         let f = ByteCountFormatter()
         f.countStyle = .file
         f.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
@@ -56,7 +57,6 @@ enum Format {
         if let c = item.videoCodec?.lowercased() {
             parts.append(["hevc", "hvc1", "hev1", "h265"].contains(c) ? "HEVC" : ["avc1", "h264"].contains(c) ? "H.264" : c.uppercased())
         }
-        parts.append(item.isLocal ? "on this device" : "in iCloud only")
         return parts.joined(separator: " · ")
     }
 
@@ -75,15 +75,15 @@ extension VideoPreset {
     }
     var summary: String {
         switch self {
-        case .gentle: "Least compression. Keeps resolution & frame rate."
-        case .balanced: "Smaller files. Keeps resolution; fine detail may change."
-        case .smallerResolution: "4K → 1080p, same frame rate. More detail loss on big screens."
+        case .gentle: "Smallest change. Looks the same, saves the least."
+        case .balanced: "Good savings. Looks the same on a phone screen."
+        case .smallerResolution: "Biggest savings. 4K becomes 1080p."
         }
     }
     var shortSummary: String {
         switch self {
-        case .gentle: "Keeps resolution"
-        case .balanced: "Smaller, keeps resolution"
+        case .gentle: "Keeps full resolution"
+        case .balanced: "Keeps full resolution"
         case .smallerResolution: "4K → 1080p"
         }
     }
