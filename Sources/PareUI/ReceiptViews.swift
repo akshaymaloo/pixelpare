@@ -52,6 +52,7 @@ private struct ReceiptLine: View {
     }
 }
 
+@MainActor
 private func receiptHeader(_ title: String) -> some View {
     VStack(spacing: 4) {
         Text("PIXELPARE").font(.system(.title2, design: .monospaced, weight: .heavy)).tracking(4)

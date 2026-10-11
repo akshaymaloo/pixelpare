@@ -456,21 +456,32 @@ private struct GroupActionBar: View {
         }
         .fixedSize(horizontal: !stacked, vertical: false)
         .frame(maxWidth: stacked ? .infinity : nil, alignment: .leading)
+        let marksRow = HStack(spacing: 6) {
+            ForEach(marked.prefix(4), id: \.self) { id in
+                PolaroidFrame(corner: 4, border: 2, bottom: 2) { ThumbnailView(id: id, maxPixel: 120).frame(width: 34, height: 26) }
+            }
+        }
+        let note = Text("The keeper stays in every group. Approving only adds to the plan; nothing is removed until you confirm the receipt.")
+            .font(.footnote).foregroundStyle(Workshop.ink2).lineLimit(3)
         Group {
             if compact || stacked {
                 VStack(alignment: .leading, spacing: 10) { summary; buttons }.frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                HStack(spacing: 12) {
-                    summary
-                    HStack(spacing: 6) {
-                        ForEach(marked.prefix(4), id: \.self) { id in
-                            PolaroidFrame(corner: 4, border: 2, bottom: 2) { ThumbnailView(id: id, maxPixel: 120).frame(width: 34, height: 26) }
-                        }
+                // The note is dropped when the row is too narrow, rather than cut off mid-sentence.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        summary
+                        marksRow
+                        note
+                        Spacer(minLength: 4)
+                        buttons
                     }
-                    Text("The keeper stays in every group. Approving only adds to the plan; nothing is removed until you confirm the receipt.")
-                        .font(.footnote).foregroundStyle(Workshop.ink2).lineLimit(3)
-                    Spacer(minLength: 4)
-                    buttons
+                    HStack(spacing: 12) {
+                        summary
+                        marksRow
+                        Spacer(minLength: 4)
+                        buttons
+                    }
                 }
             }
         }
