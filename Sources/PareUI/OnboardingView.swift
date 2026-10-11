@@ -17,7 +17,7 @@ struct OnboardingView: View {
             Text("Free up space, safely").font(.system(.largeTitle, design: .rounded, weight: .heavy)).foregroundStyle(Workshop.ink)
             Text(model.access == .denied
                  ? "PixelPare doesn't have access to your photos. Turn on Photos access in Settings to continue."
-                 : "PixelPare finds similar photos, old screenshots and large videos. It works from thumbnails first, and nothing is removed until you approve it.")
+                 : "PixelPare needs to see your photos to find what you can clear. Nothing is removed until you approve it.")
                 .font(.body).foregroundStyle(Workshop.ink2).multilineTextAlignment(.center).frame(maxWidth: 440)
             if model.access == .denied {
                 Button("Open Settings") { openSettings() }.buttonStyle(.chunky)
@@ -67,6 +67,10 @@ struct SettingsView: View {
                 }
                 Button("Choose a folder (developer / testing)…") { pickFolder = true }
                 Button("Scan again") { model.rescan() }
+            }
+            Section("Help") {
+                NavigationLink("What can PixelPare do?") { FeatureListView() }
+                Button("Show welcome again") { model.showWelcome = true }
             }
             Section("Videos") {
                 @Bindable var m = model
@@ -120,6 +124,7 @@ struct HistoryView: View {
             }
         }
         .navigationTitle("History")
+        .toolbar { ToolbarItem(placement: .primaryAction) { HelpButton(topic: .history) } }
         .task { await model.refreshHistory() }
     }
 

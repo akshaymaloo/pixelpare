@@ -43,7 +43,7 @@ struct BiggestView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar { ToolbarItem(placement: .primaryAction) { CalmToggle() } }
+        .toolbar { ToolbarItemGroup(placement: .primaryAction) { CalmToggle(); HelpButton(topic: .biggest) } }
     }
 
     private func row(_ id: MediaID) -> some View {
@@ -83,6 +83,7 @@ struct BiggestView: View {
                 .buttonStyle(.plain).foregroundStyle(Brand.teal).fixedSize()
                 .accessibilityIdentifier("biggest-press")
                 .accessibilityLabel("Press \(model.title(for: id)) into a smaller copy")
+                .help(Hint.pressFromBiggest)
             }
         }
         .padding(.vertical, 8)
@@ -137,10 +138,10 @@ struct BurstsView: View {
                         HStack {
                             Silk("\(model.selectedBursts.count) of \(model.burstLeftoverIDs.count) frames marked")
                             Spacer()
-                            Button("Mark all") { model.selectAllBursts() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                            Button("Mark all") { model.selectAllBursts() }.buttonStyle(.chunkyPlain).controlSize(.small).hint(Hint.markAll)
                                 .disabled(model.burstLeftoverIDs.allSatisfy(model.selectedBursts.contains))
                                 .accessibilityIdentifier("bursts-mark-all")
-                            Button("Clear") { model.clearBursts() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                            Button("Clear") { model.clearBursts() }.buttonStyle(.chunkyPlain).controlSize(.small).hint(Hint.clearMarks)
                                 .disabled(model.selectedBursts.isEmpty)
                         }
                         ForEach(model.burstGroups) { g in burst(g) }
@@ -155,7 +156,7 @@ struct BurstsView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar { ToolbarItem(placement: .primaryAction) { CalmToggle() } }
+        .toolbar { ToolbarItemGroup(placement: .primaryAction) { CalmToggle(); HelpButton(topic: .bursts) } }
     }
 
     private func burst(_ g: BurstGroup) -> some View {

@@ -324,6 +324,36 @@ final class PixelPareUITests: XCTestCase {
         }
     }
 
+    // MARK: Help
+
+    func testPressHelpSheet() throws {
+        launch(screen: "press")
+        let help = app.buttons["help-button"]
+        XCTAssertTrue(help.waitForExistence(timeout: 20))
+        help.tap()
+        XCTAssertTrue(app.staticTexts["Video press help"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Gentle · Balanced · Compact"].exists)
+        app.buttons["help-done"].tap()
+        XCTAssertTrue(help.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Video press help"].exists)
+    }
+
+    func testSettingsFeatureListOpensHelp() throws {
+        launch()
+        XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 20))
+        app.buttons["More"].tap()
+        app.buttons["Settings"].tap()
+        let row = app.buttons["What can PixelPare do?"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        for name in ["Lookalike tray", "Video press", "Old screenshots", "Live Photos", "History"] {
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch.waitForExistence(timeout: 5), name)
+        }
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Lookalike tray")).firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Lookalike tray help"].waitForExistence(timeout: 5))
+        app.buttons["help-done"].tap()
+    }
+
     // MARK: Helpers
 
     @discardableResult
