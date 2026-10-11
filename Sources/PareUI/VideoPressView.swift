@@ -293,16 +293,12 @@ private struct VideoRow: View {
                 Text(Format.videoDetail(item)).font(.caption).foregroundStyle(Workshop.ink2).lineLimit(1).minimumScaleFactor(0.8)
             }
             if applicable, let est, let size = item?.byteSize {
-                let after = Format.range(est.low...est.high)
+                // The size line shows the midpoint so it fits one line; the range stays on the savings line.
+                let after = Format.bytes((est.low + est.high) / 2)
                 let saved = Format.range(max(0, size - est.high)...max(0, size - est.low))
-                ViewThatFits(in: .horizontal) {
-                    Text("\(Format.bytes(size)) → ≈ \(after)").lineLimit(1).fixedSize()
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("\(Format.bytes(size)) →")
-                        Text("≈ \(after)").lineLimit(1).minimumScaleFactor(0.6)
-                    }
-                }
-                .font(.system(.footnote, design: .monospaced, weight: .semibold)).foregroundStyle(Workshop.ink)
+                Text("\(Format.bytes(size)) → ≈ \(after)")
+                    .font(.system(.footnote, design: .monospaced, weight: .semibold)).foregroundStyle(Workshop.ink)
+                    .lineLimit(1).minimumScaleFactor(0.7)
                 let saves = size - est.high < 1_000_000 ? "saves little" : "saves ≈ \(saved)"
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 5) {
