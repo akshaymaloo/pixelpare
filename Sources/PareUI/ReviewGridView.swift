@@ -25,6 +25,7 @@ struct ReviewGridView: View {
     var markedValue = "Marked for removal"
     var cardHint = "Toggles the mark. Nothing is removed until you confirm the receipt."
     var header: AnyView?
+    var help: Destination = .screenshots
 
     private var compact: Bool { sizeClass == .compact }
 
@@ -47,10 +48,10 @@ struct ReviewGridView: View {
                         HStack {
                             Silk("\(selected.count) of \(ids.count) marked")
                             Spacer()
-                            Button("Mark all") { selectAll() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                            Button("Mark all") { selectAll() }.buttonStyle(.chunkyPlain).controlSize(.small).hint(Hint.markAll)
                                 .accessibilityIdentifier("\(idPrefix)-mark-all")
                                 .disabled(ids.isEmpty || ids.allSatisfy(selected.contains))
-                            Button("Clear") { clear() }.buttonStyle(.chunkyPlain).controlSize(.small).disabled(selected.isEmpty)
+                            Button("Clear") { clear() }.buttonStyle(.chunkyPlain).controlSize(.small).disabled(selected.isEmpty).hint(Hint.clearMarks)
                         }
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: compact ? 100 : 150), spacing: 12)], spacing: 12) {
                             ForEach(ids, id: \.self) { id in card(id) }
@@ -71,7 +72,7 @@ struct ReviewGridView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar { ToolbarItem(placement: .primaryAction) { CalmToggle() } }
+        .toolbar { ToolbarItemGroup(placement: .primaryAction) { CalmToggle(); HelpButton(topic: help) } }
     }
 
     private func card(_ id: MediaID) -> some View {
@@ -133,7 +134,7 @@ struct ScreenshotsView: View {
             emptyTitle: "No old screenshots", emptyMessage: "No screenshots older than 30 days were found.",
             symbol: "iphone", ids: model.screenshotIDs, selected: model.selectedScreenshots,
             toggle: { model.toggleScreenshot($0) }, selectAll: { model.selectAllScreenshots() },
-            clear: { model.clearScreenshots() })
+            clear: { model.clearScreenshots() }, help: .screenshots)
     }
 }
 
@@ -146,7 +147,7 @@ struct BlurryView: View {
             emptyTitle: "No blurry shots", emptyMessage: "No very soft photos were found.",
             symbol: "camera.metering.unknown", ids: model.blurryIDs, selected: model.selectedBlurry,
             toggle: { model.toggleBlurry($0) }, selectAll: { model.selectAllBlurry() },
-            clear: { model.clearBlurry() })
+            clear: { model.clearBlurry() }, help: .blurry)
     }
 }
 
@@ -164,7 +165,7 @@ struct RecordingsView: View {
                 guard let item = model.items[id] else { return nil }
                 return [item.byteSize.map(Format.bytes), item.duration.map(Format.duration)].compactMap { $0 }.joined(separator: " · ")
             },
-            idPrefix: "recordings")
+            idPrefix: "recordings", help: .recordings)
     }
 }
 
@@ -192,7 +193,8 @@ struct LivePhotosView: View {
                     Banner(symbol: "arrow.triangle.2.circlepath",
                            text: "\(Format.count(unfinished.count, "conversion")) didn't finish last time. Finishing reuses the still that was already made.")
                     Button("Mark them") { model.selectUnfinishedStills() }.buttonStyle(.chunkyPlain).controlSize(.small)
-                }))
+                        .hint(Hint.markUnfinished)
+                }), help: .livePhotos)
     }
 }
 

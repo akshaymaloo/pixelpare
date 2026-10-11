@@ -37,7 +37,7 @@ struct VideoPressView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar { ToolbarItem(placement: .primaryAction) { CalmToggle() } }
+        .toolbar { ToolbarItemGroup(placement: .primaryAction) { CalmToggle(); HelpButton(topic: .videos) } }
         .sheet(item: $compareTarget) { target in
             CompareView(id: target.media).environment(model)
         }
@@ -130,9 +130,9 @@ struct VideoPressView: View {
 
     private var pickButtons: some View {
         HStack(spacing: 8) {
-            Button("Select all") { model.selectAllVideos() }.buttonStyle(.chunkyPlain).controlSize(.small)
+            Button("Select all") { model.selectAllVideos() }.buttonStyle(.chunkyPlain).controlSize(.small).hint(Hint.selectAll)
             Button("Clear") { model.clearVideos() }.buttonStyle(.chunkyPlain).controlSize(.small)
-                .disabled(model.selectedVideos.isEmpty)
+                .disabled(model.selectedVideos.isEmpty).hint(Hint.clear)
         }
         .lineLimit(1).fixedSize()
     }
@@ -221,6 +221,7 @@ struct PresetDial: View {
                                 .fill(p == preset ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Workshop.paper)))
                     }
                     .buttonStyle(.plain)
+                    .hint(Hint.preset)
                 }
             }
         }
@@ -283,6 +284,7 @@ private struct VideoRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Check quality of \(model.title(for: id))")
+            .help(Hint.checkQuality)
         }
     }
 
@@ -345,10 +347,10 @@ private struct RecoveredSection: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(model.title(for: job.original)).font(.footnote.weight(.semibold)).foregroundStyle(Workshop.ink)
                     HStack(spacing: 8) {
-                        Button(accepted ? "Will resume" : "Resume") { model.setRecoveredAccepted(job.original, !accepted) }
+                        Button(accepted ? "Will resume" : "Resume") { model.setRecoveredAccepted(job.original, !accepted) }.hint(Hint.resume)
                             .buttonStyle(accepted ? .chunky : .chunkyPlain).controlSize(.small)
                             .accessibilityHint(accepted ? "Tap to leave it for later" : "Adds it to your next press")
-                        Button("Discard") { Task { await model.discardRecovered(job.original) } }
+                        Button("Discard") { Task { await model.discardRecovered(job.original) } }.hint(Hint.discard)
                             .buttonStyle(.chunkyPlain).controlSize(.small)
                             .accessibilityHint("Cancels this job. The original is untouched")
                     }
@@ -406,6 +408,7 @@ private struct PressBar: View {
                 .buttonStyle(.chunky).disabled(!model.canExecute)
                 .lineLimit(1).fixedSize()
                 .accessibilityIdentifier("press-receipt")
+                .hint(Hint.pressReview)
                 if !model.canExecute {
                     Text("Pick at least one video").font(.caption2).foregroundStyle(Workshop.ink2)
                 }

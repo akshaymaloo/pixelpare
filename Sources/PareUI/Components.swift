@@ -161,7 +161,7 @@ struct PlanBar: View {
                     .multilineTextAlignment(.trailing)
             }
             Button("Review receipt") { model.showPlan = true }
-                .buttonStyle(.chunky).disabled(plan.isEmpty).lineLimit(1).fixedSize()
+                .buttonStyle(.chunky).disabled(plan.isEmpty).lineLimit(1).fixedSize().hint(Hint.reviewReceipt)
         }
         .padding(.horizontal, 20).padding(.vertical, 10)
         .workshopModule(radius: 20, screws: false)

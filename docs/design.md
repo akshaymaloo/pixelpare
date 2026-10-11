@@ -200,6 +200,13 @@ No nagging mascot, forced quips, streak loss, autoplay sound, repeated celebrati
 
 **Calm mode**, available immediately: stationary cards, neutral copy, no character/easter eggs, sound or haptics; identical functionality and safety disclosures. Independently honor Reduce Motion, Reduce Transparency, Increase Contrast, Dynamic Type and VoiceOver. State changes need text and symbols, not color alone. Delight should take milliseconds, never hold the next action hostage.
 
+## Help
+
+Plain words, no manual. Every feature screen has a "?" toolbar button opening a short sheet: one line on what it finds, a
+list of its buttons, and a "Safe by design" line. A three-card welcome (what it does, how it stays safe, where to start)
+appears once and can be replayed from Settings, which also lists every feature with a link to its help. Buttons carry
+matching tooltips and VoiceOver hints. All wording lives in one file, `HelpContent.swift`.
+
 ## Web sources
 
 1. [Teenage Engineering Pocket Operators](https://teenage.engineering/products/po) — compact instrument metaphor.

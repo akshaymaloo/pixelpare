@@ -45,11 +45,13 @@ struct WorkbenchView: View {
                 }
                 CalmToggle()
                 Button { model.rescan() } label: { Label("Rescan", systemImage: "arrow.clockwise") }
-                    .disabled(scanning)
+                    .disabled(scanning).hint(Hint.rescan)
                 Menu {
                     Button { model.path.append(.history) } label: { Label("History", systemImage: "clock.arrow.circlepath") }
                     Button { model.path.append(.settings) } label: { Label("Settings", systemImage: "gearshape") }
                 } label: { Label("More", systemImage: "ellipsis.circle") }
+                    .hint(Hint.more)
+                HelpButton(topic: .home)
             }
         }
     }
@@ -87,7 +89,7 @@ struct WorkbenchView: View {
                 Text("Works from small thumbnails on this device.")
                     .font(.footnote).foregroundStyle(Workshop.ink2)
                 Spacer()
-                Button("Stop") { model.cancelScan() }.buttonStyle(.chunkyPlain).controlSize(.small)
+                Button("Stop") { model.cancelScan() }.buttonStyle(.chunkyPlain).controlSize(.small).hint(Hint.stopScan)
             }
         }
         .padding(20).frame(maxWidth: .infinity, alignment: .leading)
@@ -104,7 +106,7 @@ struct WorkbenchView: View {
                     .font(.footnote).foregroundStyle(Workshop.ink2)
             }
             Spacer()
-            Button("Review originals") { model.reviewPendingOriginals() }.buttonStyle(.chunkyPlain)
+            Button("Review originals") { model.reviewPendingOriginals() }.buttonStyle(.chunkyPlain).hint(Hint.reviewOriginals)
         }
         .padding(16).workshopModule(radius: 20)
     }
@@ -171,7 +173,7 @@ private struct LookalikeTray: View {
                         Text("These shots belong together. Each group opens on the light table. Nothing is marked until you do it.")
                             .font(.footnote).foregroundStyle(Workshop.ink2)
                         HStack {
-                            Button("Open the tray") { model.path.append(.similar) }.buttonStyle(.chunky)
+                            Button("Open the tray") { model.path.append(.similar) }.buttonStyle(.chunky).hint(Hint.openTray)
                             Silk("\(model.approvedGroupCount) approved", color: Workshop.ink3)
                         }
                         .padding(.top, 6)
@@ -221,7 +223,7 @@ private struct VideoPressTray: View {
                 Text("Make smaller copies of big videos. Your original stays until the copy is checked and you say so.")
                     .font(.footnote).foregroundStyle(Workshop.ink2)
                 HStack {
-                    Button("Open the press") { model.path.append(.videos) }.buttonStyle(.chunky)
+                    Button("Open the press") { model.path.append(.videos) }.buttonStyle(.chunky).hint(Hint.openTray)
                     Chip(text: "Sizes are estimates", color: Workshop.amberDark)
                 }
             }
@@ -248,7 +250,7 @@ private struct ScreenshotTray: View {
                         trayTitle("Old screenshots")
                         Text("\(Format.count(ids.count, "screenshot")) older than 30 days, about \(Format.range(model.screenshotOpportunity)). Not automatically worthless. You open the bundle, you decide.")
                             .font(.footnote).foregroundStyle(Workshop.ink2)
-                        Button("Untie the bundle") { model.path.append(.screenshots) }.buttonStyle(.chunkyPlain)
+                        Button("Untie the bundle") { model.path.append(.screenshots) }.buttonStyle(.chunkyPlain).hint(Hint.openTray)
                     }
                 }
             }
@@ -274,7 +276,7 @@ private struct BlurryTray: View {
                         trayTitle("Blurry shots")
                         Text("\(Format.count(ids.count, "very soft photo")), about \(Format.range(model.blurryOpportunity)). Some are blurry on purpose. Look before you mark.")
                             .font(.footnote).foregroundStyle(Workshop.ink2)
-                        Button("Take a look") { model.path.append(.blurry) }.buttonStyle(.chunkyPlain)
+                        Button("Take a look") { model.path.append(.blurry) }.buttonStyle(.chunkyPlain).hint(Hint.openTray)
                     }
                 }
             }
@@ -309,7 +311,7 @@ private struct BundleTray: View {
                     VStack(alignment: .leading, spacing: 6) {
                         trayTitle(title)
                         Text(text).font(.footnote).foregroundStyle(Workshop.ink2)
-                        Button(button) { model.path.append(destination) }.buttonStyle(.chunkyPlain)
+                        Button(button) { model.path.append(destination) }.buttonStyle(.chunkyPlain).hint(Hint.openTray)
                             .accessibilityIdentifier(identifier)
                     }
                 }

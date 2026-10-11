@@ -242,7 +242,7 @@ struct WorkingView: View {
                         .font(.footnote).foregroundStyle(Workshop.ink2).multilineTextAlignment(.center)
                 }
                 if progress.total > 0 {
-                    Button("Pause") { model.stopWork() }.buttonStyle(.chunkyPlain)
+                    Button("Pause") { model.stopWork() }.buttonStyle(.chunkyPlain).hint(Hint.pause)
                 }
                 Text("Originals are never touched while this runs. If PixelPare quits, the press resumes next time. The video in progress starts over.")
                     .font(.footnote).foregroundStyle(Workshop.ink3).multilineTextAlignment(.center).frame(maxWidth: 420)
@@ -363,7 +363,7 @@ struct RecapView: View {
                 Button("How to recover in Photos") {
                     if let url = URL(string: "https://support.apple.com/108922") { openURL(url) }
                 }.buttonStyle(.borderless)
-                Button("Back to the bench") { model.finishRun() }.buttonStyle(.chunky).disabled(model.isRemoving)
+                Button("Back to the bench") { model.finishRun() }.buttonStyle(.chunky).disabled(model.isRemoving).hint(Hint.backToBench)
             }
             .padding(22).frame(maxWidth: 600).frame(maxWidth: .infinity)
         }

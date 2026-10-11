@@ -169,6 +169,15 @@ public final class AppModel {
     static let folderBookmarkKey = "pixelpare.folderBookmark"
     static let calmKey = "pixelpare.calm"
     static let cellularKey = "pixelpare.cellular"
+    static let welcomeKey = "pixelpare.welcomeSeen"
+
+    /// First-run welcome cards; also re-opened from Settings.
+    public var showWelcome = false
+
+    public func markWelcomeSeen() {
+        showWelcome = false
+        defaults.set(true, forKey: Self.welcomeKey)
+    }
 
     /// `--folder <path>` / `PIXELPARE_FOLDER` select a FolderLibrary; `--sample` / `PIXELPARE_SAMPLE=1` the in-memory
     /// SampleLibrary; otherwise the saved Settings choice, otherwise the Photos library.
@@ -179,6 +188,10 @@ public final class AppModel {
         self.calmMode = defaults.bool(forKey: Self.calmKey)
         self.allowCellular = defaults.object(forKey: Self.cellularKey) as? Bool ?? true
         if let i = arguments.firstIndex(of: "--screen"), arguments.indices.contains(i + 1) { launchScreen = arguments[i + 1] }
+        let scripted = arguments.contains("--screen") || arguments.contains("--sample") || arguments.contains("--folder")
+            || arguments.contains("-ui-testing") || environment["PIXELPARE_SAMPLE"] == "1" || environment["PIXELPARE_FOLDER"] != nil
+            || environment["XCTestConfigurationFilePath"] != nil
+        self.showWelcome = !scripted && !defaults.bool(forKey: Self.welcomeKey)
         var chosen: LibrarySource = .photos
         if let i = arguments.firstIndex(of: "--folder"), arguments.indices.contains(i + 1) {
             chosen = .folder(URL(fileURLWithPath: arguments[i + 1], isDirectory: true))

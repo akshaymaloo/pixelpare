@@ -52,6 +52,9 @@ public struct PixelPareRootView: View {
                 .presentationDragIndicator(.visible)
                 .interactiveDismissDisabled(ReceiptDismissal.isLocked(isRemoving: model.isRemoving, isWorking: working))
         }
+        .sheet(isPresented: $m.showWelcome, onDismiss: { model.markWelcomeSeen() }) {
+            WelcomeView { model.markWelcomeSeen() }
+        }
         .alert("Something went wrong", isPresented: Binding(get: { m.errorMessage != nil && !m.showPlan }, set: { if !$0 { m.errorMessage = nil } })) {
             Button("OK") { m.errorMessage = nil }
         } message: { Text(m.errorMessage ?? "") }

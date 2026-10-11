@@ -40,7 +40,7 @@ struct LightTableView: View {
         .background(BenchBackground())
         .overlay { if let id = peek { PeekOverlay(id: id) { peek = nil }.transition(.opacity) } }
         .animation(calm ? nil : .easeOut(duration: 0.15), value: peek)
-        .navigationTitle("Lookalike tray")
+        .navigationTitle(compact ? "Similar" : "Lookalike tray")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -53,19 +53,21 @@ struct LightTableView: View {
                             ForEach(GroupSort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                         }
                     } label: { Image(systemName: "arrow.up.arrow.down") }
-                        .accessibilityLabel("Sort groups")
+                        .accessibilityLabel("Sort groups").hint(Hint.sort)
                     CalmToggle(iconOnly: true)
                     Button { model.showPlan = true } label: { Label("Review receipt", systemImage: "receipt").labelStyle(.iconOnly) }
                         .accessibilityLabel("Review receipt")
-                        .disabled(model.plan.isEmpty)
+                        .disabled(model.plan.isEmpty).hint(Hint.reviewReceipt)
+                    HelpButton(topic: .similar)
                 } else {
                     Picker("Sort", selection: $m.groupSort) {
                         ForEach(GroupSort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }
-                    .pickerStyle(.menu)
+                    .pickerStyle(.menu).help(Hint.sort)
                     CalmToggle()
                     Button { model.showPlan = true } label: { Label("Review receipt", systemImage: "receipt") }
-                        .disabled(model.plan.isEmpty)
+                        .disabled(model.plan.isEmpty).hint(Hint.reviewReceipt)
+                    HelpButton(topic: .similar)
                 }
             }
         }
@@ -338,7 +340,7 @@ private struct LightCard: View {
                         }
                         .buttonStyle(.chunkyPlain).controlSize(.small)
                         .accessibilityLabel("Make keeper")
-                        .help("Make keeper. The current keeper stays kept until you mark it")
+                        .help("Make keeper. The current keeper stays kept until you mark it").accessibilityHint(Hint.makeKeeper)
                     }
                 }
             }
@@ -440,18 +442,18 @@ private struct GroupActionBar: View {
         let buttons = buttonLayout {
             Button { advance() } label: { Text("Skip").lineLimit(1) }
                 .buttonStyle(.chunkyPlain).keyboardShortcut("s", modifiers: [])
-                .help("Decide later (S)")
+                .help("Decide later (S)").accessibilityHint(Hint.skip)
             Button { model.skipGroup(group.id); advance() } label: { Text(compact ? "Keep all" : "Keep group").lineLimit(1) }
                 .buttonStyle(.chunkyPlain).keyboardShortcut("k", modifiers: [])
-                .help("Keep every photo in this group (K)")
+                .help("Keep every photo in this group (K)").accessibilityHint(Hint.keepGroup)
             if approved {
                 Button { model.unapproveGroup(group.id) } label: { Text("Undo approval").lineLimit(stacked ? 2 : 1) }
-                    .buttonStyle(.chunkyPlain)
+                    .buttonStyle(.chunkyPlain).hint(Hint.undoApproval)
             } else {
                 Button { model.approveGroup(group.id); advance() } label: { Text(compact ? "Approve" : "Approve group").lineLimit(1) }
                     .buttonStyle(.chunky).keyboardShortcut(.return, modifiers: [])
                     .disabled(marked.isEmpty)
-                    .help("Approve removing the marked photos (Return)")
+                    .help("Approve removing the marked photos (Return)").accessibilityHint(Hint.approve)
             }
         }
         .fixedSize(horizontal: !stacked, vertical: false)
