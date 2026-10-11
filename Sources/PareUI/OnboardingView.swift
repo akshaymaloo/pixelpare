@@ -117,8 +117,10 @@ struct HistoryView: View {
                         Text(e.updatedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.tertiary)
                     }
                 }
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(BenchBackground())
         .navigationTitle("History")
         .task { await model.refreshHistory() }
     }
